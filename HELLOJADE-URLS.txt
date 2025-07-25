@@ -1,0 +1,31 @@
+🚀 HELLOJADE v1.0 - URLs d'accès
+=====================================
+
+📊 GRAFANA (Interface principale)
+URL: http://localhost:3000
+Username: admin
+Password: hellojade123
+
+📈 PROMETHEUS (Métriques)
+URL: http://localhost:9090
+
+🧠 OLLAMA (Intelligence Artificielle)
+URL: http://localhost:11434
+
+=====================================
+INSTRUCTIONS RAPIDES:
+1. Copiez et collez ces URLs dans votre navigateur
+2. Commencez par Grafana (http://localhost:3000)
+3. Connectez-vous avec admin/hellojade123
+4. Explorez les dashboards !
+
+=====================================
+CONFIGURATION ZADARMA:
+- SIP Server: sip.zadarma.com
+- SIP Login: 514666
+- SIP Password: iGv3WMkYp8
+- CallerID: +32480206284
+- IP Serveur: 81.241.207.153
+
+=====================================
+🎉 Bonne utilisation de HelloJADE ! 

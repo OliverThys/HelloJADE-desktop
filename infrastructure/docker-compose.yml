@@ -1,0 +1,205 @@
+version: '3.8'
+
+services:
+  # Base de données Oracle
+  oracle:
+    image: container-registry.oracle.com/database/express:21.3.0-xe
+    container_name: hellojade-oracle
+    environment:
+      - ORACLE_PWD=hellojade123
+      - ORACLE_CHARACTERSET=AL32UTF8
+    ports:
+      - "1521:1521"
+    volumes:
+      - oracle_data:/opt/oracle/oradata
+      - ./oracle/init:/opt/oracle/scripts/startup
+    networks:
+      - hellojade-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sqlplus", "-L", "system/hellojade123@//localhost:1521/XE", "AS", "SYSDBA", "@healthcheck.sql"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Prometheus pour le monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: hellojade-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - hellojade-network
+    restart: unless-stopped
+
+  # Grafana pour les dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: hellojade-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=hellojade123
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - hellojade-network
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+  # Elasticsearch pour le logging
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: hellojade-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - hellojade-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Logstash pour le traitement des logs
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: hellojade-logstash
+    ports:
+      - "5044:5044"
+      - "5000:5000/tcp"
+      - "5000:5000/udp"
+      - "9600:9600"
+    environment:
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml
+    networks:
+      - hellojade-network
+    restart: unless-stopped
+    depends_on:
+      - elasticsearch
+
+  # Kibana pour la visualisation des logs
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: hellojade-kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    volumes:
+      - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml
+    networks:
+      - hellojade-network
+    restart: unless-stopped
+    depends_on:
+      - elasticsearch
+
+  # Redis pour le cache et les sessions
+  redis:
+    image: redis:7-alpine
+    container_name: hellojade-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - hellojade-network
+    restart: unless-stopped
+
+  # Nginx pour le reverse proxy
+            nginx:
+            image: nginx:alpine
+            container_name: hellojade-nginx
+            ports:
+              - "80:80"
+              - "443:443"
+            volumes:
+              - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+              - ./nginx/ssl:/etc/nginx/ssl
+              - ./nginx/logs:/var/log/nginx
+            networks:
+              - hellojade-network
+            restart: unless-stopped
+
+  # Asterisk pour la téléphonie
+  asterisk:
+    image: asterisk/asterisk:latest
+    container_name: hellojade-asterisk
+    ports:
+      - "5060:5060/udp"
+      - "5060:5060/tcp"
+      - "5038:5038"
+      - "8088:8088"
+    volumes:
+      - ./asterisk/config:/etc/asterisk
+      - ./asterisk/recordings:/var/spool/asterisk/monitor
+      - ./asterisk/logs:/var/log/asterisk
+    networks:
+      - hellojade-network
+    restart: unless-stopped
+    environment:
+      - ASTERISK_UID=1000
+      - ASTERISK_GID=1000
+
+  # Ollama pour l'IA locale
+  ollama:
+    image: ollama/ollama:latest
+    container_name: hellojade-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./ai/models:/models
+    networks:
+      - hellojade-network
+    restart: unless-stopped
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_ORIGINS=*
+
+volumes:
+  oracle_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+  redis_data:
+    driver: local
+  ollama_data:
+    driver: local
+
+networks:
+  hellojade-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16 

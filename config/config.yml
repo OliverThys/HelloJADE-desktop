@@ -1,0 +1,183 @@
+# Configuration principale HelloJADE v1.0
+# Application desktop SaaS pour hôpitaux
+
+app:
+  name: "HelloJADE"
+  version: "1.0.0"
+  environment: "production"  # production, development, staging
+  debug: false
+  secret_key: "${HELLOJADE_SECRET_KEY}"  # Variable d'environnement
+  timezone: "Europe/Brussels"
+
+# Configuration base de données Oracle
+database:
+  host: "${ORACLE_HOST}"
+  port: 1521
+  service_name: "${ORACLE_SERVICE}"
+  username: "${ORACLE_USER}"
+  password: "${ORACLE_PASSWORD}"
+  pool_size: 10
+  max_overflow: 20
+  pool_timeout: 30
+  pool_recycle: 3600
+
+# Configuration LDAP hospitalier
+ldap:
+  server: "${LDAP_SERVER}"
+  port: 389
+  use_ssl: false
+  use_tls: true
+  base_dn: "${LDAP_BASE_DN}"
+  bind_dn: "${LDAP_BIND_DN}"
+  bind_password: "${LDAP_BIND_PASSWORD}"
+  user_search_base: "${LDAP_USER_SEARCH_BASE}"
+  group_search_base: "${LDAP_GROUP_SEARCH_BASE}"
+  timeout: 10
+  retries: 3
+
+# Configuration téléphonie Asterisk/Zadarma
+telephony:
+  asterisk:
+    host: "${ASTERISK_HOST}"
+    port: 5038
+    username: "${ASTERISK_USER}"
+    password: "${ASTERISK_PASSWORD}"
+    context: "hellojade"
+    extension_prefix: "8"
+  
+  zadarma:
+    api_key: "${ZADARMA_API_KEY}"
+    api_secret: "${ZADARMA_API_SECRET}"
+    webhook_url: "${ZADARMA_WEBHOOK_URL}"
+    call_timeout: 60
+    retry_attempts: 3
+
+# Configuration IA
+ai:
+  whisper:
+    model: "base"  # tiny, base, small, medium, large
+    language: "fr"
+    device: "cpu"  # cpu, cuda
+    batch_size: 16
+  
+  piper:
+    model_path: "./ai/models/piper/fr_FR-amy-medium.onnx"
+    config_path: "./ai/models/piper/fr_FR-amy-medium.onnx.json"
+    device: "cpu"
+    speed: 1.0
+  
+  ollama:
+    host: "http://localhost:11434"
+    model: "llama2:7b"
+    temperature: 0.7
+    max_tokens: 2048
+    timeout: 30
+
+# Configuration sécurité
+security:
+  jwt:
+    secret_key: "${JWT_SECRET_KEY}"
+    algorithm: "HS256"
+    expiration_hours: 24
+    refresh_expiration_days: 7
+  
+  password:
+    min_length: 12
+    require_uppercase: true
+    require_lowercase: true
+    require_numbers: true
+    require_special: true
+  
+  encryption:
+    algorithm: "AES-256-GCM"
+    key_derivation: "PBKDF2"
+    iterations: 100000
+
+# Configuration logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "./logs/hellojade.log"
+  max_size: "100MB"
+  backup_count: 5
+  syslog: false
+
+# Configuration monitoring
+monitoring:
+  prometheus:
+    enabled: true
+    port: 9090
+    metrics_path: "/metrics"
+  
+  grafana:
+    enabled: true
+    port: 3000
+    admin_user: "admin"
+    admin_password: "${GRAFANA_ADMIN_PASSWORD}"
+  
+  elk:
+    elasticsearch:
+      host: "localhost"
+      port: 9200
+      index_prefix: "hellojade"
+    
+    logstash:
+      host: "localhost"
+      port: 5044
+    
+    kibana:
+      host: "localhost"
+      port: 5601
+
+# Configuration frontend Tauri
+frontend:
+  tauri:
+    app_name: "HelloJADE"
+    window_title: "HelloJADE - Gestion Post-Hospitalisation"
+    window_width: 1200
+    window_height: 800
+    resizable: true
+    fullscreen: false
+    always_on_top: false
+  
+  vue:
+    dev_server_port: 3000
+    build_output: "dist"
+    public_path: "/"
+
+# Configuration notifications
+notifications:
+  email:
+    enabled: false
+    smtp_host: "${SMTP_HOST}"
+    smtp_port: 587
+    smtp_user: "${SMTP_USER}"
+    smtp_password: "${SMTP_PASSWORD}"
+    from_address: "noreply@hellojade.com"
+  
+  sms:
+    enabled: false
+    provider: "twilio"
+    account_sid: "${TWILIO_ACCOUNT_SID}"
+    auth_token: "${TWILIO_AUTH_TOKEN}"
+    from_number: "${TWILIO_FROM_NUMBER}"
+
+# Configuration backup
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Tous les jours à 2h du matin
+  retention_days: 30
+  storage_path: "./backups"
+  include_database: true
+  include_logs: true
+  include_config: true
+
+# Configuration performance
+performance:
+  max_concurrent_calls: 10
+  max_concurrent_transcriptions: 5
+  cache_ttl: 3600
+  session_timeout: 1800
+  rate_limit:
+    requests_per_minute: 100
+    burst_size: 20 

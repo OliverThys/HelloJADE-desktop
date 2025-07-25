@@ -1,0 +1,24 @@
+[package]
+name = "hellojade"
+version = "1.0.0"
+description = "HelloJADE - Application desktop pour la gestion post-hospitalisation"
+authors = ["Epicura Belgium"]
+license = "MIT"
+repository = "https://github.com/epicura/hellojade"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+tauri-build = { version = "1.5", features = [] }
+
+[dependencies]
+tauri = { version = "1.5", features = [ "fs-rename-file", "dialog-all", "fs-read-file", "notification-all", "shell-open", "path-all", "http-all", "fs-write-file", "fs-exists", "fs-remove-file", "fs-remove-dir", "fs-create-dir", "fs-read-dir", "window-all"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+
+[features]
+# this feature is used for production builds or when `devPath` points to the filesystem
+# DO NOT REMOVE!!
+custom-protocol = ["tauri/custom-protocol"] 
