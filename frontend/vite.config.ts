@@ -43,7 +43,9 @@ export default defineConfig({
       '@stores': fileURLToPath(new URL('./src/stores', import.meta.url)),
       '@utils': fileURLToPath(new URL('./src/utils', import.meta.url)),
       '@types': fileURLToPath(new URL('./src/types', import.meta.url)),
-      '@assets': fileURLToPath(new URL('./src/assets', import.meta.url))
+      '@assets': fileURLToPath(new URL('./src/assets', import.meta.url)),
+      '@i18n': fileURLToPath(new URL('./src/i18n', import.meta.url)),
+      '@router': fileURLToPath(new URL('./src/router', import.meta.url))
     }
   },
   
@@ -79,7 +81,8 @@ export default defineConfig({
       'chart.js',
       'vue-chartjs',
       'date-fns',
-      'lodash-es'
+      'lodash-es',
+      'vue-toastification'
     ]
   }
 }) 
