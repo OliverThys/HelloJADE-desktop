@@ -1,708 +1,597 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-HelloJADE v1.0 - Module IA
-Gestion complète de l'intelligence artificielle
-- Whisper (STT) : Transcription audio
-- Piper (TTS) : Synthèse vocale  
-- Ollama (LLM) : Analyse et génération de contenu médical
+HelloJADE v1.0 - Module d'intelligence artificielle
+Intégration Whisper (transcription), Piper (synthèse) et Ollama (analyse)
 """
 
-import os
-import json
 import logging
-import asyncio
-import subprocess
-import tempfile
+import time
+import json
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
-import requests
+import tempfile
+
+import whisper
+import piper
 import torch
 import torchaudio
-from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
-import whisper
-from pydub import AudioSegment
-import numpy as np
-from dataclasses import dataclass
-from concurrent.futures import ThreadPoolExecutor
-import threading
-import time
+import requests
+from flask import current_app
 
-from .database import get_db, AITranscription, AIAnalysis, MedicalRecord
-from .monitoring import record_ai_operation, record_ai_duration
+from core.database import db, AITranscription, AIAnalysis, log_audit
+from core.logging import get_logger, ai_logger
+from core.monitoring import track_ai_operation
 
-logger = logging.getLogger(__name__)
+logger = get_logger('ai')
 
-@dataclass
-class TranscriptionResult:
-    """Résultat de transcription Whisper"""
-    text: str
-    confidence: float
-    language: str
-    segments: List[Dict]
-    duration: float
-    processing_time: float
-    model_used: str
-
-@dataclass
-class AnalysisResult:
-    """Résultat d'analyse Ollama"""
-    summary: str
-    key_points: List[str]
-    sentiment: str
-    urgency_level: str
-    medical_notes: str
-    recommendations: List[str]
-    confidence: float
-    processing_time: float
-    model_used: str
-
-@dataclass
-class TTSResult:
-    """Résultat de synthèse vocale Piper"""
-    audio_path: str
-    duration: float
-    text_length: int
-    quality_score: float
-    processing_time: float
-    voice_used: str
 
 class WhisperManager:
-    """Gestionnaire Whisper pour la reconnaissance vocale"""
+    """Gestionnaire pour Whisper (transcription audio)"""
     
-    def __init__(self, config: Dict):
-        self.config = config
+    def __init__(self, app):
+        self.app = app
+        self.config = app.config
         self.model = None
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model_name = config.get('model_name', 'base')
-        self.language = config.get('language', 'fr')
-        self.task = config.get('task', 'transcribe')
-        self.max_workers = config.get('max_workers', 2)
+        self.logger = get_logger('whisper')
         self._load_model()
     
     def _load_model(self):
         """Charge le modèle Whisper"""
         try:
-            logger.info(f"Chargement du modèle Whisper: {self.model_name}")
-            self.model = whisper.load_model(self.model_name, device=self.device)
-            logger.info(f"Modèle Whisper chargé sur {self.device}")
+            model_name = self.config.get('WHISPER_MODEL', 'base')
+            self.logger.info(f"Chargement du modèle Whisper: {model_name}")
+            
+            # Chargement du modèle avec configuration optimisée
+            self.model = whisper.load_model(
+                model_name,
+                device=self.config.get('WHISPER_DEVICE', 'cpu'),
+                download_root=self.config.get('AI_MODELS_PATH', './ai/models/whisper')
+            )
+            
+            self.logger.info(f"Modèle Whisper chargé: {model_name}")
+            
         except Exception as e:
-            logger.error(f"Erreur lors du chargement du modèle Whisper: {str(e)}")
-            raise
+            self.logger.error(f"Erreur lors du chargement du modèle Whisper: {e}")
+            self.model = None
     
-    def transcribe_audio(self, audio_path: str) -> TranscriptionResult:
+    @track_ai_operation('transcription', 'whisper')
+    def transcribe_audio(self, audio_file_path: str, language: str = 'fr') -> Optional[Dict[str, Any]]:
         """
         Transcrit un fichier audio en texte
+        
+        Args:
+            audio_file_path: Chemin vers le fichier audio
+            language: Langue du fichier audio
+            
+        Returns:
+            Dict avec transcription et métadonnées
         """
+        if not self.model:
+            self.logger.error("Modèle Whisper non chargé")
+            return None
+        
         try:
             start_time = time.time()
             
-            if not os.path.exists(audio_path):
-                raise FileNotFoundError(f"Fichier audio non trouvé: {audio_path}")
-            
-            # Charger l'audio
-            audio = whisper.load_audio(audio_path)
-            duration = len(audio) / 16000  # Whisper utilise 16kHz
+            # Options de transcription
+            options = {
+                'language': language,
+                'task': 'transcribe',
+                'fp16': False,  # Désactivé pour CPU
+                'verbose': False
+            }
             
             # Transcription
-            result = self.model.transcribe(
-                audio,
-                language=self.language,
-                task=self.task,
-                verbose=False,
-                word_timestamps=True
+            result = self.model.transcribe(audio_file_path, **options)
+            
+            duration = time.time() - start_time
+            
+            # Préparation du résultat
+            transcription_data = {
+                'text': result['text'].strip(),
+                'language': result['language'],
+                'segments': result.get('segments', []),
+                'confidence': self._calculate_confidence(result),
+                'processing_time': duration,
+                'model_used': self.config.get('WHISPER_MODEL', 'base')
+            }
+            
+            self.logger.info(
+                f"Transcription réussie: {len(transcription_data['text'])} caractères en {duration:.2f}s"
             )
             
-            processing_time = time.time() - start_time
+            return transcription_data
             
-            # Calculer la confiance moyenne
+        except Exception as e:
+            self.logger.error(f"Erreur lors de la transcription: {e}")
+            return None
+    
+    def _calculate_confidence(self, result: Dict) -> float:
+        """Calcule le score de confiance moyen"""
+        try:
             segments = result.get('segments', [])
-            if segments:
-                confidence = np.mean([segment.get('avg_logprob', 0) for segment in segments])
-            else:
-                confidence = 0.0
+            if not segments:
+                return 0.0
             
-            transcription = TranscriptionResult(
-                text=result['text'].strip(),
-                confidence=confidence,
-                language=result.get('language', self.language),
-                segments=segments,
-                duration=duration,
-                processing_time=processing_time,
-                model_used=self.model_name
+            # Calcul de la moyenne des scores de confiance
+            confidence_scores = []
+            for segment in segments:
+                if 'avg_logprob' in segment:
+                    # Conversion du logprob en probabilité
+                    confidence_scores.append(torch.exp(segment['avg_logprob']).item())
+            
+            if confidence_scores:
+                return sum(confidence_scores) / len(confidence_scores)
+            return 0.0
+            
+        except Exception as e:
+            self.logger.warning(f"Erreur lors du calcul de confiance: {e}")
+            return 0.0
+    
+    def transcribe_call_recording(self, call_id: str, recording_path: str) -> Optional[AITranscription]:
+        """Transcrit l'enregistrement d'un appel et sauvegarde en base"""
+        try:
+            # Transcription
+            result = self.transcribe_audio(recording_path)
+            if not result:
+                return None
+            
+            # Sauvegarde en base de données
+            transcription = AITranscription(
+                call_id=call_id,
+                audio_file_path=recording_path,
+                transcription_text=result['text'],
+                confidence_score=result['confidence'],
+                language=result['language'],
+                processing_time=result['processing_time'],
+                model_used=result['model_used'],
+                status='completed'
             )
             
-            # Métriques
-            record_ai_operation('whisper', 'transcribe', 'success')
-            record_ai_duration('whisper', 'transcribe', processing_time)
+            db.session.add(transcription)
+            db.session.commit()
             
-            logger.info(f"Transcription terminée: {len(transcription.text)} caractères, "
-                       f"confiance: {confidence:.2f}, durée: {processing_time:.2f}s")
+            # Log d'audit
+            log_audit(
+                user_id=None,  # Système
+                action='TRANSCRIPTION_CREATED',
+                resource_type='ai_transcription',
+                resource_id=str(transcription.id),
+                ip_address=None
+            )
             
+            self.logger.info(f"Transcription sauvegardée pour l'appel {call_id}")
             return transcription
             
         except Exception as e:
-            logger.error(f"Erreur lors de la transcription: {str(e)}")
-            record_ai_operation('whisper', 'transcribe', 'error')
-            raise
-    
-    def transcribe_batch(self, audio_paths: List[str]) -> List[TranscriptionResult]:
-        """Transcrit plusieurs fichiers audio en parallèle"""
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            results = list(executor.map(self.transcribe_audio, audio_paths))
-        return results
+            self.logger.error(f"Erreur lors de la transcription d'appel: {e}")
+            return None
+
 
 class PiperManager:
-    """Gestionnaire Piper pour la synthèse vocale"""
+    """Gestionnaire pour Piper (synthèse vocale)"""
     
-    def __init__(self, config: Dict):
-        self.config = config
-        self.model_path = config.get('model_path')
-        self.config_path = config.get('config_path')
-        self.output_dir = config.get('output_dir', 'temp/tts')
-        self.voice = config.get('voice', 'fr_FR-m-ailabs_low')
-        self.sample_rate = config.get('sample_rate', 22050)
-        self.executable = config.get('executable', 'piper')
-        
-        # Créer le répertoire de sortie
-        os.makedirs(self.output_dir, exist_ok=True)
-        
-        # Vérifier que les modèles sont disponibles
-        if not self._check_models():
-            raise ValueError("Modèles Piper non trouvés")
+    def __init__(self, app):
+        self.app = app
+        self.config = app.config
+        self.model = None
+        self.logger = get_logger('piper')
+        self._load_model()
     
-    def _check_models(self) -> bool:
-        """Vérifie que les modèles Piper sont disponibles"""
-        if not self.model_path or not os.path.exists(self.model_path):
-            logger.warning(f"Modèle Piper non trouvé: {self.model_path}")
-            return False
-        
-        if not self.config_path or not os.path.exists(self.config_path):
-            logger.warning(f"Configuration Piper non trouvée: {self.config_path}")
-            return False
-        
-        return True
+    def _load_model(self):
+        """Charge le modèle Piper"""
+        try:
+            model_path = self.config.get('PIPER_MODEL_PATH')
+            if not model_path or not Path(model_path).exists():
+                self.logger.error(f"Modèle Piper non trouvé: {model_path}")
+                return
+            
+            self.logger.info(f"Chargement du modèle Piper: {model_path}")
+            
+            # Chargement du modèle
+            self.model = piper.PiperVoice.load(
+                model_path,
+                config_path=model_path.replace('.onnx', '.onnx.json')
+            )
+            
+            self.logger.info("Modèle Piper chargé avec succès")
+            
+        except Exception as e:
+            self.logger.error(f"Erreur lors du chargement du modèle Piper: {e}")
+            self.model = None
     
-    def synthesize_speech(self, text: str, output_filename: str = None) -> TTSResult:
+    @track_ai_operation('synthesis', 'piper')
+    def synthesize_speech(self, text: str, output_path: str = None, 
+                         speed: float = 1.0) -> Optional[str]:
         """
         Synthétise du texte en parole
+        
+        Args:
+            text: Texte à synthétiser
+            output_path: Chemin de sortie (optionnel)
+            speed: Vitesse de lecture
+            
+        Returns:
+            Chemin vers le fichier audio généré
         """
+        if not self.model:
+            self.logger.error("Modèle Piper non chargé")
+            return None
+        
         try:
             start_time = time.time()
             
-            if not output_filename:
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                output_filename = f"tts_{timestamp}.wav"
+            # Génération du chemin de sortie si non fourni
+            if not output_path:
+                output_path = tempfile.mktemp(suffix='.wav')
             
-            output_path = os.path.join(self.output_dir, output_filename)
+            # Synthèse vocale
+            self.model.synthesize(text, output_path, speed=speed)
             
-            # Préparer le texte
-            text = self._preprocess_text(text)
+            duration = time.time() - start_time
             
-            # Commande Piper
-            cmd = [
-                self.executable,
-                '--model', self.model_path,
-                '--config', self.config_path,
-                '--output_file', output_path
-            ]
-            
-            # Exécuter la synthèse
-            process = subprocess.Popen(
-                cmd,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
+            self.logger.info(
+                f"Synthèse vocale réussie: {len(text)} caractères en {duration:.2f}s"
             )
             
-            stdout, stderr = process.communicate(input=text)
+            return output_path
             
-            if process.returncode != 0:
-                raise RuntimeError(f"Erreur Piper: {stderr}")
+        except Exception as e:
+            self.logger.error(f"Erreur lors de la synthèse vocale: {e}")
+            return None
+    
+    def create_reminder_audio(self, message: str, patient_name: str) -> Optional[str]:
+        """Crée un message audio de rappel personnalisé"""
+        try:
+            # Personnalisation du message
+            personalized_text = f"Bonjour {patient_name}, {message}"
             
-            # Vérifier que le fichier a été créé
-            if not os.path.exists(output_path):
-                raise RuntimeError("Fichier audio non généré")
+            # Génération du fichier audio
+            output_path = Path(self.config.get('UPLOAD_FOLDER', 'uploads')) / 'reminders'
+            output_path.mkdir(parents=True, exist_ok=True)
             
-            # Calculer la durée
-            audio = AudioSegment.from_wav(output_path)
-            duration = len(audio) / 1000.0  # en secondes
+            audio_file = output_path / f"reminder_{int(time.time())}.wav"
             
-            processing_time = time.time() - start_time
-            
-            result = TTSResult(
-                audio_path=output_path,
-                duration=duration,
-                text_length=len(text),
-                quality_score=min(1.0, len(text) / 100),  # Score basique
-                processing_time=processing_time,
-                voice_used=self.voice
-            )
-            
-            # Métriques
-            record_ai_operation('piper', 'synthesize', 'success')
-            record_ai_duration('piper', 'synthesize', processing_time)
-            
-            logger.info(f"Synthèse vocale terminée: {len(text)} caractères, "
-                       f"durée: {duration:.2f}s, temps: {processing_time:.2f}s")
-            
+            result = self.synthesize_speech(personalized_text, str(audio_file))
             return result
             
         except Exception as e:
-            logger.error(f"Erreur lors de la synthèse vocale: {str(e)}")
-            record_ai_operation('piper', 'synthesize', 'error')
-            raise
-    
-    def _preprocess_text(self, text: str) -> str:
-        """Préprocesse le texte pour la synthèse"""
-        # Nettoyer le texte
-        text = text.strip()
-        
-        # Remplacer les abréviations médicales
-        medical_abbreviations = {
-            'Dr.': 'Docteur',
-            'Mme.': 'Madame',
-            'M.': 'Monsieur',
-            'etc.': 'et cetera',
-            'vs.': 'versus',
-            'i.e.': 'c\'est-à-dire',
-            'e.g.': 'par exemple',
-            'J+1': 'jour plus un',
-            'J+2': 'jour plus deux',
-            'J+3': 'jour plus trois'
-        }
-        
-        for abbr, full in medical_abbreviations.items():
-            text = text.replace(abbr, full)
-        
-        return text
-    
-    def synthesize_batch(self, texts: List[str]) -> List[TTSResult]:
-        """Synthétise plusieurs textes en parallèle"""
-        results = []
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            futures = [executor.submit(self.synthesize_speech, text) for text in texts]
-            for future in futures:
-                results.append(future.result())
-        return results
+            self.logger.error(f"Erreur lors de la création du rappel audio: {e}")
+            return None
+
 
 class OllamaManager:
-    """Gestionnaire Ollama pour l'analyse LLM local"""
+    """Gestionnaire pour Ollama (analyse et génération de texte)"""
     
-    def __init__(self, config: Dict):
-        self.config = config
-        self.base_url = config.get('base_url', 'http://localhost:11434')
-        self.model_name = config.get('model_name', 'llama2')
-        self.max_tokens = config.get('max_tokens', 2048)
-        self.temperature = config.get('temperature', 0.7)
-        self.timeout = config.get('timeout', 30)
-        
-        # Vérifier la connexion
-        self._check_connection()
+    def __init__(self, app):
+        self.app = app
+        self.config = app.config
+        self.base_url = self.config.get('OLLAMA_HOST', 'http://localhost:11434')
+        self.default_model = self.config.get('OLLAMA_MODEL', 'llama2')
+        self.logger = get_logger('ollama')
     
-    def _check_connection(self):
-        """Vérifie la connexion à Ollama"""
+    def _make_request(self, endpoint: str, data: Dict = None) -> Optional[Dict]:
+        """Effectue une requête vers l'API Ollama"""
         try:
-            response = requests.get(f"{self.base_url}/api/tags", timeout=5)
-            if response.status_code != 200:
-                raise ConnectionError("Impossible de se connecter à Ollama")
+            url = f"{self.base_url}{endpoint}"
+            headers = {'Content-Type': 'application/json'}
             
-            models = response.json().get('models', [])
-            model_names = [model['name'] for model in models]
+            if data:
+                response = requests.post(url, json=data, headers=headers, timeout=30)
+            else:
+                response = requests.get(url, headers=headers, timeout=10)
             
-            if self.model_name not in model_names:
-                logger.warning(f"Modèle {self.model_name} non trouvé. Modèles disponibles: {model_names}")
+            if response.status_code == 200:
+                return response.json()
+            else:
+                self.logger.error(f"Erreur API Ollama: {response.status_code} - {response.text}")
+                return None
                 
         except Exception as e:
-            logger.error(f"Erreur de connexion à Ollama: {str(e)}")
-            raise
+            self.logger.error(f"Erreur requête Ollama: {e}")
+            return None
     
-    def analyze_transcription(self, transcription: str, patient_context: Dict = None) -> AnalysisResult:
-        """
-        Analyse une transcription avec contexte patient
-        """
+    def get_available_models(self) -> List[str]:
+        """Récupère la liste des modèles disponibles"""
         try:
-            start_time = time.time()
-            
-            # Construire le prompt
-            prompt = self._build_analysis_prompt(transcription, patient_context)
-            
-            # Appel à Ollama
-            response = self._call_ollama(prompt)
-            
-            # Parser la réponse
-            analysis = self._parse_analysis_response(response)
-            
-            processing_time = time.time() - start_time
-            
-            result = AnalysisResult(
-                summary=analysis.get('summary', ''),
-                key_points=analysis.get('key_points', []),
-                sentiment=analysis.get('sentiment', 'neutral'),
-                urgency_level=analysis.get('urgency_level', 'normal'),
-                medical_notes=analysis.get('medical_notes', ''),
-                recommendations=analysis.get('recommendations', []),
-                confidence=analysis.get('confidence', 0.8),
-                processing_time=processing_time,
-                model_used=self.model_name
-            )
-            
-            # Métriques
-            record_ai_operation('ollama', 'analyze', 'success')
-            record_ai_duration('ollama', 'analyze', processing_time)
-            
-            logger.info(f"Analyse IA terminée: {len(result.summary)} caractères, "
-                       f"niveau urgence: {result.urgency_level}, temps: {processing_time:.2f}s")
-            
-            return result
+            result = self._make_request('/api/tags')
+            if result and 'models' in result:
+                return [model['name'] for model in result['models']]
+            return []
             
         except Exception as e:
-            logger.error(f"Erreur lors de l'analyse IA: {str(e)}")
-            record_ai_operation('ollama', 'analyze', 'error')
-            raise
+            self.logger.error(f"Erreur lors de la récupération des modèles: {e}")
+            return []
     
-    def _build_analysis_prompt(self, transcription: str, patient_context: Dict = None) -> str:
-        """Construit le prompt pour l'analyse"""
-        prompt = f"""
-Tu es un assistant médical spécialisé dans l'analyse d'appels post-hospitalisation.
-Analyse la transcription suivante et fournis un résumé structuré.
-
-TRANSCRIPTION:
-{transcription}
-
-"""
+    @track_ai_operation('analysis', 'ollama')
+    def analyze_text(self, text: str, analysis_type: str = 'general', 
+                    model: str = None) -> Optional[Dict[str, Any]]:
+        """
+        Analyse un texte avec Ollama
         
-        if patient_context:
-            prompt += f"""
-CONTEXTE PATIENT:
-- Nom: {patient_context.get('name', 'Non spécifié')}
-- Âge: {patient_context.get('age', 'Non spécifié')}
-- Diagnostic principal: {patient_context.get('diagnosis', 'Non spécifié')}
-- Médicaments actuels: {patient_context.get('medications', 'Non spécifié')}
-- Allergies: {patient_context.get('allergies', 'Aucune connue')}
-
-"""
-        
-        prompt += """
-Tâches à effectuer:
-1. Résumé principal (2-3 phrases)
-2. Points clés (liste à puces)
-3. Sentiment du patient (positif/neutre/négatif)
-4. Niveau d'urgence (faible/normal/élevé/critique)
-5. Notes médicales importantes
-6. Recommandations pour le suivi
-7. Score de confiance (0-1)
-
-Réponds au format JSON:
-{
-  "summary": "résumé principal",
-  "key_points": ["point 1", "point 2", "point 3"],
-  "sentiment": "positif/neutre/négatif",
-  "urgency_level": "faible/normal/élevé/critique",
-  "medical_notes": "notes médicales importantes",
-  "recommendations": ["recommandation 1", "recommandation 2"],
-  "confidence": 0.85
-}
-"""
-        
-        return prompt
-    
-    def _call_ollama(self, prompt: str) -> str:
-        """Appelle l'API Ollama"""
+        Args:
+            text: Texte à analyser
+            analysis_type: Type d'analyse (sentiment, medical, compliance, etc.)
+            model: Modèle à utiliser
+            
+        Returns:
+            Résultat de l'analyse
+        """
         try:
-            payload = {
-                "model": self.model_name,
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "num_predict": self.max_tokens,
-                    "temperature": self.temperature
+            if not model:
+                model = self.default_model
+            
+            start_time = time.time()
+            
+            # Construction du prompt selon le type d'analyse
+            prompt = self._build_analysis_prompt(text, analysis_type)
+            
+            # Requête vers Ollama
+            data = {
+                'model': model,
+                'prompt': prompt,
+                'stream': False,
+                'options': {
+                    'temperature': 0.7,
+                    'top_p': 0.9,
+                    'max_tokens': 1000
                 }
             }
             
-            response = requests.post(
-                f"{self.base_url}/api/generate",
-                json=payload,
-                timeout=self.timeout
+            result = self._make_request('/api/generate', data)
+            
+            if not result:
+                return None
+            
+            duration = time.time() - start_time
+            
+            # Traitement de la réponse
+            analysis_result = {
+                'analysis_type': analysis_type,
+                'input_text': text,
+                'result': result.get('response', ''),
+                'model_used': model,
+                'processing_time': duration,
+                'tokens_used': result.get('eval_count', 0)
+            }
+            
+            self.logger.info(
+                f"Analyse {analysis_type} réussie en {duration:.2f}s"
             )
             
-            if response.status_code != 200:
-                raise RuntimeError(f"Erreur API Ollama: {response.text}")
-            
-            result = response.json()
-            return result.get('response', '')
+            return analysis_result
             
         except Exception as e:
-            logger.error(f"Erreur lors de l'appel Ollama: {str(e)}")
-            raise
+            self.logger.error(f"Erreur lors de l'analyse: {e}")
+            return None
     
-    def _parse_analysis_response(self, response: str) -> Dict:
-        """Parse la réponse JSON d'Ollama"""
-        try:
-            # Essayer de trouver du JSON dans la réponse
-            start_idx = response.find('{')
-            end_idx = response.rfind('}') + 1
-            
-            if start_idx == -1 or end_idx == 0:
-                raise ValueError("Aucun JSON trouvé dans la réponse")
-            
-            json_str = response[start_idx:end_idx]
-            return json.loads(json_str)
-            
-        except json.JSONDecodeError as e:
-            logger.warning(f"Erreur de parsing JSON: {str(e)}")
-            # Retourner une analyse basique
-            return {
-                "summary": response[:200] + "..." if len(response) > 200 else response,
-                "key_points": [],
-                "sentiment": "neutre",
-                "urgency_level": "normal",
-                "medical_notes": "",
-                "recommendations": [],
-                "confidence": 0.5
-            }
+    def _build_analysis_prompt(self, text: str, analysis_type: str) -> str:
+        """Construit le prompt pour l'analyse"""
+        base_prompt = f"Analyse le texte suivant et fournis une réponse structurée en français:\n\n{text}\n\n"
+        
+        if analysis_type == 'sentiment':
+            return base_prompt + """
+            Analyse le sentiment et l'émotion exprimés dans ce texte.
+            Réponds au format JSON avec:
+            - sentiment: positif, négatif, neutre
+            - emotion: joie, tristesse, colère, peur, surprise, dégoût
+            - confidence: score de confiance (0-1)
+            - keywords: mots-clés émotionnels
+            """
+        
+        elif analysis_type == 'medical':
+            return base_prompt + """
+            Analyse ce texte d'un point de vue médical.
+            Identifie:
+            - Symptômes mentionnés
+            - Médicaments cités
+            - Niveau d'urgence (faible, moyen, élevé)
+            - Recommandations
+            Réponds au format JSON structuré.
+            """
+        
+        elif analysis_type == 'compliance':
+            return base_prompt + """
+            Vérifie la conformité de ce texte aux réglementations médicales.
+            Identifie:
+            - Risques de conformité
+            - Informations sensibles
+            - Recommandations de sécurité
+            Réponds au format JSON structuré.
+            """
+        
+        else:
+            return base_prompt + "Fournis une analyse générale du contenu au format JSON."
     
-    def generate_medical_summary(self, patient_data: Dict, call_history: List[Dict]) -> str:
-        """Génère un résumé médical complet"""
+    def generate_summary(self, text: str, max_length: int = 200) -> Optional[str]:
+        """Génère un résumé d'un texte"""
         try:
             prompt = f"""
-Génère un résumé médical structuré pour un patient post-hospitalisation.
-
-DONNÉES PATIENT:
-{json.dumps(patient_data, indent=2, ensure_ascii=False)}
-
-HISTORIQUE DES APPELS:
-{json.dumps(call_history, indent=2, ensure_ascii=False)}
-
-Génère un résumé médical professionnel incluant:
-- Évolution clinique
-- Points d'attention
-- Recommandations
-- Suivi nécessaire
-
-Format: Texte structuré avec sections claires.
-"""
+            Résume le texte suivant en maximum {max_length} caractères:
             
-            response = self._call_ollama(prompt)
-            return response.strip()
+            {text}
             
-        except Exception as e:
-            logger.error(f"Erreur lors de la génération du résumé médical: {str(e)}")
-            raise
-
-class AIManager:
-    """Gestionnaire principal IA orchestrant Whisper, Piper et Ollama"""
-    
-    def __init__(self, app=None):
-        self.app = app
-        self.whisper_manager = None
-        self.piper_manager = None
-        self.ollama_manager = None
-        self.is_initialized = False
-        
-        if app:
-            self.init_app(app)
-    
-    def init_app(self, app):
-        """Initialise le gestionnaire IA avec l'application Flask"""
-        self.app = app
-        
-        # Charger la configuration
-        config = app.config.get('AI_CONFIG', {})
-        
-        try:
-            # Initialiser les gestionnaires
-            if config.get('whisper', {}).get('enabled', True):
-                self.whisper_manager = WhisperManager(config.get('whisper', {}))
+            Résumé:
+            """
             
-            if config.get('piper', {}).get('enabled', True):
-                self.piper_manager = PiperManager(config.get('piper', {}))
-            
-            if config.get('ollama', {}).get('enabled', True):
-                self.ollama_manager = OllamaManager(config.get('ollama', {}))
-            
-            self.is_initialized = True
-            logger.info("Gestionnaire IA initialisé avec succès")
-            
-        except Exception as e:
-            logger.error(f"Erreur lors de l'initialisation du gestionnaire IA: {str(e)}")
-            self.is_initialized = False
-    
-    def process_call_recording(self, audio_path: str, call_id: int, patient_context: Dict = None) -> Dict:
-        """
-        Traite un enregistrement d'appel complet
-        Transcription -> Analyse -> Synthèse -> Sauvegarde DB
-        """
-        try:
-            if not self.is_initialized:
-                raise RuntimeError("Gestionnaire IA non initialisé")
-            
-            results = {
-                'transcription': None,
-                'analysis': None,
-                'tts_summary': None,
-                'processing_time': 0,
-                'success': False,
-                'call_id': call_id
+            data = {
+                'model': self.default_model,
+                'prompt': prompt,
+                'stream': False,
+                'options': {
+                    'temperature': 0.3,
+                    'max_tokens': 500
+                }
             }
             
-            start_time = time.time()
+            result = self._make_request('/api/generate', data)
             
-            # 1. Transcription
-            if self.whisper_manager:
-                logger.info(f"Début transcription: {audio_path}")
-                transcription = self.whisper_manager.transcribe_audio(audio_path)
-                results['transcription'] = transcription
-                
-                # 2. Analyse IA
-                if self.ollama_manager and transcription.text:
-                    logger.info("Début analyse IA")
-                    analysis = self.ollama_manager.analyze_transcription(
-                        transcription.text, patient_context
-                    )
-                    results['analysis'] = analysis
-                    
-                    # 3. Synthèse vocale du résumé
-                    if self.piper_manager and analysis.summary:
-                        logger.info("Début synthèse vocale")
-                        tts_result = self.piper_manager.synthesize_speech(analysis.summary)
-                        results['tts_summary'] = tts_result
-                    
-                    # 4. Sauvegarde en base de données
-                    self._save_ai_results(call_id, transcription, analysis)
-            
-            results['processing_time'] = time.time() - start_time
-            results['success'] = True
-            
-            logger.info(f"Traitement IA terminé: {results['processing_time']:.2f}s")
-            return results
+            if result:
+                return result.get('response', '').strip()
+            return None
             
         except Exception as e:
-            logger.error(f"Erreur lors du traitement IA: {str(e)}")
-            results['error'] = str(e)
-            return results
+            self.logger.error(f"Erreur lors de la génération du résumé: {e}")
+            return None
     
-    def _save_ai_results(self, call_id: int, transcription: TranscriptionResult, analysis: AnalysisResult):
-        """Sauvegarde les résultats IA en base de données"""
+    def analyze_call_transcription(self, call_id: str, transcription_text: str) -> Optional[AIAnalysis]:
+        """Analyse la transcription d'un appel et sauvegarde en base"""
         try:
-            db = get_db()
+            # Analyse multi-type
+            analyses = {}
             
-            # Sauvegarde transcription
-            ai_transcription = AITranscription(
+            # Analyse de sentiment
+            sentiment_result = self.analyze_text(transcription_text, 'sentiment')
+            if sentiment_result:
+                analyses['sentiment'] = sentiment_result
+            
+            # Analyse médicale
+            medical_result = self.analyze_text(transcription_text, 'medical')
+            if medical_result:
+                analyses['medical'] = medical_result
+            
+            # Analyse de conformité
+            compliance_result = self.analyze_text(transcription_text, 'compliance')
+            if compliance_result:
+                analyses['compliance'] = compliance_result
+            
+            if not analyses:
+                return None
+            
+            # Sauvegarde en base de données
+            analysis = AIAnalysis(
                 call_id=call_id,
-                text=transcription.text,
-                confidence=transcription.confidence,
-                language=transcription.language,
-                duration=transcription.duration,
-                segments=json.dumps(transcription.segments),
-                model_used=transcription.model_used,
-                processing_time=transcription.processing_time
+                analysis_type='comprehensive',
+                input_text=transcription_text,
+                analysis_result=analyses,
+                model_used=self.default_model,
+                status='completed'
             )
-            db.add(ai_transcription)
             
-            # Sauvegarde analyse
-            ai_analysis = AIAnalysis(
-                call_id=call_id,
-                summary=analysis.summary,
-                sentiment=analysis.sentiment,
-                urgency_level=analysis.urgency_level,
-                medical_notes=analysis.medical_notes,
-                recommendations=json.dumps(analysis.recommendations),
-                confidence=analysis.confidence,
-                model_used=analysis.model_used,
-                processing_time=analysis.processing_time
+            db.session.add(analysis)
+            db.session.commit()
+            
+            # Log d'audit
+            log_audit(
+                user_id=None,  # Système
+                action='ANALYSIS_CREATED',
+                resource_type='ai_analysis',
+                resource_id=str(analysis.id),
+                ip_address=None
             )
-            db.add(ai_analysis)
             
-            # Créer un dossier médical si urgence élevée
-            if analysis.urgency_level in ['élevé', 'critique']:
-                medical_record = MedicalRecord(
-                    patient_id=call_id,  # À adapter selon la structure
-                    record_type='ai_alert',
-                    title=f"Alerte IA - {analysis.urgency_level}",
-                    content=analysis.medical_notes,
-                    severity=analysis.urgency_level,
-                    ai_generated=True,
-                    created_by_user_id=1  # Système
-                )
-                db.add(medical_record)
-            
-            db.commit()
-            logger.info(f"Résultats IA sauvegardés pour l'appel {call_id}")
+            self.logger.info(f"Analyse sauvegardée pour l'appel {call_id}")
+            return analysis
             
         except Exception as e:
-            logger.error(f"Erreur lors de la sauvegarde des résultats IA: {str(e)}")
-            db.rollback()
+            self.logger.error(f"Erreur lors de l'analyse d'appel: {e}")
+            return None
+
+
+class AIManager:
+    """Gestionnaire principal de l'IA"""
     
-    def generate_tts_message(self, text: str, output_filename: str = None) -> TTSResult:
-        """Génère un message audio à partir de texte"""
-        if not self.is_initialized or not self.piper_manager:
-            raise RuntimeError("Piper non initialisé")
+    def __init__(self, app):
+        self.app = app
+        self.whisper = WhisperManager(app)
+        self.piper = PiperManager(app)
+        self.ollama = OllamaManager(app)
+        self.logger = get_logger('ai_manager')
+    
+    def process_call_recording(self, call_id: str, recording_path: str) -> Tuple[Optional[AITranscription], Optional[AIAnalysis]]:
+        """
+        Traite complètement un enregistrement d'appel
         
-        return self.piper_manager.synthesize_speech(text, output_filename)
+        Args:
+            call_id: ID de l'appel
+            recording_path: Chemin vers l'enregistrement
+            
+        Returns:
+            Tuple (transcription, analysis)
+        """
+        try:
+            # Transcription
+            transcription = self.whisper.transcribe_call_recording(call_id, recording_path)
+            if not transcription:
+                return None, None
+            
+            # Analyse de la transcription
+            analysis = self.ollama.analyze_call_transcription(call_id, transcription.transcription_text)
+            
+            self.logger.info(f"Traitement IA complet pour l'appel {call_id}")
+            return transcription, analysis
+            
+        except Exception as e:
+            self.logger.error(f"Erreur lors du traitement IA de l'appel {call_id}: {e}")
+            return None, None
     
-    def get_health_status(self) -> Dict:
-        """Retourne le statut de santé des services IA"""
+    def create_personalized_message(self, patient_name: str, message_template: str, 
+                                  context: Dict = None) -> Optional[str]:
+        """Crée un message personnalisé avec synthèse vocale"""
+        try:
+            # Personnalisation du message
+            personalized_text = message_template.format(
+                patient_name=patient_name,
+                **(context or {})
+            )
+            
+            # Génération audio
+            audio_path = self.piper.create_reminder_audio(personalized_text, patient_name)
+            return audio_path
+            
+        except Exception as e:
+            self.logger.error(f"Erreur lors de la création du message personnalisé: {e}")
+            return None
+    
+    def get_ai_status(self) -> Dict[str, Any]:
+        """Récupère le statut des services IA"""
         status = {
-            'whisper': {'enabled': False, 'status': 'disabled'},
-            'piper': {'enabled': False, 'status': 'disabled'},
-            'ollama': {'enabled': False, 'status': 'disabled'},
-            'overall': 'healthy'
+            'whisper': {
+                'available': self.whisper.model is not None,
+                'model': self.app.config.get('WHISPER_MODEL', 'base')
+            },
+            'piper': {
+                'available': self.piper.model is not None,
+                'model': self.app.config.get('PIPER_MODEL_PATH', 'N/A')
+            },
+            'ollama': {
+                'available': len(self.ollama.get_available_models()) > 0,
+                'models': self.ollama.get_available_models()
+            }
         }
-        
-        try:
-            if self.whisper_manager:
-                status['whisper'] = {
-                    'enabled': True,
-                    'status': 'healthy',
-                    'model': self.whisper_manager.model_name,
-                    'device': self.whisper_manager.device
-                }
-            
-            if self.piper_manager:
-                status['piper'] = {
-                    'enabled': True,
-                    'status': 'healthy',
-                    'model': self.piper_manager.model_path,
-                    'voice': self.piper_manager.voice
-                }
-            
-            if self.ollama_manager:
-                status['ollama'] = {
-                    'enabled': True,
-                    'status': 'healthy',
-                    'model': self.ollama_manager.model_name,
-                    'base_url': self.ollama_manager.base_url
-                }
-            
-            # Vérifier si au moins un service est actif
-            active_services = sum(1 for service in status.values() 
-                                if isinstance(service, dict) and service.get('enabled'))
-            
-            if active_services == 0:
-                status['overall'] = 'unhealthy'
-            
-        except Exception as e:
-            logger.error(f"Erreur lors de la vérification du statut IA: {str(e)}")
-            status['overall'] = 'error'
         
         return status
     
-    def cleanup_temp_files(self):
-        """Nettoie les fichiers temporaires"""
+    def cleanup_old_files(self, max_age_days: int = 30):
+        """Nettoie les anciens fichiers temporaires"""
         try:
-            if self.piper_manager and os.path.exists(self.piper_manager.output_dir):
-                for file in os.listdir(self.piper_manager.output_dir):
-                    file_path = os.path.join(self.piper_manager.output_dir, file)
-                    if os.path.isfile(file_path):
-                        # Supprimer les fichiers de plus de 24h
-                        if time.time() - os.path.getmtime(file_path) > 86400:
-                            os.remove(file_path)
-                            logger.debug(f"Fichier temporaire supprimé: {file_path}")
+            upload_path = Path(self.app.config.get('UPLOAD_FOLDER', 'uploads'))
+            cutoff_time = datetime.now(timezone.utc).timestamp() - (max_age_days * 24 * 3600)
+            
+            cleaned_count = 0
+            for file_path in upload_path.rglob('*.wav'):
+                if file_path.stat().st_mtime < cutoff_time:
+                    file_path.unlink()
+                    cleaned_count += 1
+            
+            if cleaned_count > 0:
+                self.logger.info(f"Nettoyage terminé: {cleaned_count} fichiers supprimés")
+                
         except Exception as e:
-            logger.error(f"Erreur lors du nettoyage des fichiers temporaires: {str(e)}")
+            self.logger.error(f"Erreur lors du nettoyage: {e}")
 
-# Instance globale
-ai_manager = AIManager() 
+
+# Instance globale du gestionnaire IA
+ai_manager = None
+
+
+def init_ai(app):
+    """Initialisation du système d'IA"""
+    global ai_manager
+    ai_manager = AIManager(app)
+    logger.info("Système d'IA initialisé")
+
+
+def get_ai_manager() -> AIManager:
+    """Récupère l'instance du gestionnaire IA"""
+    return ai_manager 

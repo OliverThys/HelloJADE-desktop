@@ -1,514 +1,541 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 HelloJADE v1.0 - Module de téléphonie
-Gestion des appels via Asterisk et intégration Zadarma
+Gestion des appels avec Asterisk et Zadarma
 """
 
 import logging
-import requests
-import hashlib
-import hmac
 import time
+import uuid
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
-import json
+from typing import Dict, Any, Optional, List
+from pathlib import Path
 
-from .database import get_db, Call, Patient
-from .monitoring import record_call, record_call_duration
+import pyst2
+import requests
+from flask import current_app
 
-logger = logging.getLogger(__name__)
+from core.database import db, Call, log_audit
+from core.logging import get_logger, telephony_logger
+from core.monitoring import track_call_operation
+
+logger = get_logger('telephony')
+
 
 class AsteriskManager:
-    """
-    Gestionnaire pour les interactions avec Asterisk
-    """
+    """Gestionnaire pour Asterisk"""
     
-    def __init__(self, app=None):
+    def __init__(self, app):
         self.app = app
-        self.config = {}
-        self.session = requests.Session()
-        
-        if app is not None:
-            self.init_app(app)
+        self.config = app.config
+        self.manager = None
+        self.logger = get_logger('asterisk')
     
-    def init_app(self, app):
-        """Initialise la configuration Asterisk"""
-        self.config = {
-            'host': app.config.get('ASTERISK_HOST', 'localhost'),
-            'port': app.config.get('ASTERISK_PORT', 5038),
-            'username': app.config.get('ASTERISK_USER', 'hellojade'),
-            'password': app.config.get('ASTERISK_PASSWORD', ''),
-            'context': app.config.get('ASTERISK_CONTEXT', 'hellojade'),
-            'extension_prefix': app.config.get('ASTERISK_EXTENSION_PREFIX', '8')
-        }
-        
-        # Configuration de la session HTTP
-        self.session.auth = (self.config['username'], self.config['password'])
-        self.session.headers.update({
-            'Content-Type': 'application/json',
-            'User-Agent': 'HelloJADE/1.0'
-        })
-        
-        logger.info("Gestionnaire Asterisk initialisé")
-    
-    def test_connection(self) -> bool:
-        """Teste la connexion à Asterisk"""
+    def connect(self) -> bool:
+        """Établit la connexion avec Asterisk"""
         try:
-            url = f"http://{self.config['host']}:{self.config['port']}/asterisk/rawman"
-            response = self.session.get(url, params={'command': 'core show version'})
-            return response.status_code == 200
+            self.manager = pyst2.Manager(
+                host=self.config['ASTERISK_HOST'],
+                port=self.config['ASTERISK_PORT'],
+                username=self.config['ASTERISK_USERNAME'],
+                secret=self.config['ASTERISK_PASSWORD']
+            )
+            self.manager.connect()
+            self.logger.info("Connexion Asterisk établie")
+            return True
         except Exception as e:
-            logger.error(f"Erreur de connexion Asterisk: {str(e)}")
+            self.logger.error(f"Erreur de connexion Asterisk: {e}")
             return False
     
-    def originate_call(self, call_id: str, phone_number: str, context: str = None) -> bool:
-        """
-        Lance un appel sortant via Asterisk
-        """
+    def disconnect(self):
+        """Ferme la connexion Asterisk"""
+        if self.manager:
+            try:
+                self.manager.close()
+                self.logger.info("Connexion Asterisk fermée")
+            except Exception as e:
+                self.logger.error(f"Erreur lors de la fermeture Asterisk: {e}")
+    
+    def originate_call(self, call_id: str, phone_number: str, context: str = "hellojade") -> bool:
+        """Initie un appel sortant"""
         try:
-            if not context:
-                context = self.config['context']
+            if not self.manager:
+                if not self.connect():
+                    return False
             
-            # Construction de la commande AMI
-            command = {
-                'Action': 'Originate',
-                'Channel': f"SIP/{phone_number}",
-                'Context': context,
-                'Exten': self.config['extension_prefix'],
-                'Priority': 1,
-                'Callerid': f"HelloJADE <{phone_number}>",
-                'Variable': f"CALLID={call_id}",
-                'Async': 'yes'
-            }
+            # Création de l'extension unique
+            extension = f"8{call_id[-6:]}"
             
-            url = f"http://{self.config['host']}:{self.config['port']}/asterisk/rawman"
-            response = self.session.post(url, data=command)
+            # Origination de l'appel
+            result = self.manager.originate(
+                channel=f"SIP/{phone_number}",
+                exten=extension,
+                context=context,
+                priority=1,
+                timeout=30000,
+                callerid=f"HelloJADE <{extension}>",
+                variables={
+                    'CALLID': call_id,
+                    'PHONENUMBER': phone_number
+                }
+            )
             
-            if response.status_code == 200:
-                logger.info(f"Appel lancé: {call_id} vers {phone_number}")
-                return True
-            else:
-                logger.error(f"Erreur lors du lancement de l'appel: {response.text}")
-                return False
-                
+            self.logger.info(f"Appel initié: {call_id} vers {phone_number}")
+            return True
+            
         except Exception as e:
-            logger.error(f"Erreur lors du lancement de l'appel {call_id}: {str(e)}")
+            self.logger.error(f"Erreur lors de l'initiation d'appel: {e}")
             return False
     
     def hangup_call(self, channel: str) -> bool:
-        """
-        Termine un appel en cours
-        """
+        """Raccroche un appel"""
         try:
-            command = {
-                'Action': 'Hangup',
-                'Channel': channel
-            }
+            if not self.manager:
+                return False
             
-            url = f"http://{self.config['host']}:{self.config['port']}/asterisk/rawman"
-            response = self.session.post(url, data=command)
-            
-            return response.status_code == 200
+            result = self.manager.hangup(channel)
+            self.logger.info(f"Appel raccroché: {channel}")
+            return True
             
         except Exception as e:
-            logger.error(f"Erreur lors de la terminaison de l'appel: {str(e)}")
+            self.logger.error(f"Erreur lors du raccrochage: {e}")
             return False
     
-    def get_channel_status(self, channel: str) -> Dict:
-        """
-        Récupère le statut d'un canal
-        """
+    def get_channel_status(self, channel: str) -> Optional[str]:
+        """Récupère le statut d'un canal"""
         try:
-            command = {
-                'Action': 'Status',
-                'Channel': channel
-            }
+            if not self.manager:
+                return None
             
-            url = f"http://{self.config['host']}:{self.config['port']}/asterisk/rawman"
-            response = self.session.get(url, params=command)
+            result = self.manager.status(channel)
+            return result.get('Status', 'Unknown')
             
-            if response.status_code == 200:
-                return self._parse_ami_response(response.text)
-            else:
-                return {}
-                
         except Exception as e:
-            logger.error(f"Erreur lors de la récupération du statut: {str(e)}")
-            return {}
+            self.logger.error(f"Erreur lors de la récupération du statut: {e}")
+            return None
     
-    def _parse_ami_response(self, response_text: str) -> Dict:
-        """Parse une réponse AMI"""
-        result = {}
-        current_event = {}
-        
-        for line in response_text.split('\n'):
-            if line.strip():
-                if ':' in line:
-                    key, value = line.split(':', 1)
-                    current_event[key.strip()] = value.strip()
-                elif line.strip() == '':
-                    if current_event:
-                        result.update(current_event)
-                        current_event = {}
-        
-        if current_event:
-            result.update(current_event)
-        
-        return result
+    def get_active_calls(self) -> List[Dict[str, Any]]:
+        """Récupère la liste des appels actifs"""
+        try:
+            if not self.manager:
+                return []
+            
+            result = self.manager.status()
+            active_calls = []
+            
+            for channel_info in result:
+                if channel_info.get('Status') == 'Up':
+                    active_calls.append({
+                        'channel': channel_info.get('Channel'),
+                        'caller_id': channel_info.get('CallerID'),
+                        'duration': channel_info.get('Duration'),
+                        'context': channel_info.get('Context')
+                    })
+            
+            return active_calls
+            
+        except Exception as e:
+            self.logger.error(f"Erreur lors de la récupération des appels actifs: {e}")
+            return []
+
 
 class ZadarmaManager:
-    """
-    Gestionnaire pour l'intégration Zadarma
-    """
+    """Gestionnaire pour Zadarma"""
     
-    def __init__(self, app=None):
+    def __init__(self, app):
         self.app = app
-        self.config = {}
-        self.session = requests.Session()
-        
-        if app is not None:
-            self.init_app(app)
+        self.config = app.config
+        self.api_key = self.config['ZADARMA_API_KEY']
+        self.secret_key = self.config['ZADARMA_SECRET_KEY']
+        self.base_url = "https://api.zadarma.com"
+        self.logger = get_logger('zadarma')
     
-    def init_app(self, app):
-        """Initialise la configuration Zadarma"""
-        self.config = {
-            'api_key': app.config.get('ZADARMA_API_KEY', ''),
-            'api_secret': app.config.get('ZADARMA_API_SECRET', ''),
-            'webhook_url': app.config.get('ZADARMA_WEBHOOK_URL', ''),
-            'call_timeout': app.config.get('ZADARMA_CALL_TIMEOUT', 60),
-            'retry_attempts': app.config.get('ZADARMA_RETRY_ATTEMPTS', 3)
-        }
-        
-        logger.info("Gestionnaire Zadarma initialisé")
-    
-    def make_call(self, call_id: str, phone_number: str, callback_url: str = None) -> Dict:
-        """
-        Lance un appel via l'API Zadarma
-        """
+    def _make_request(self, endpoint: str, method: str = 'GET', data: Dict = None) -> Optional[Dict]:
+        """Effectue une requête vers l'API Zadarma"""
         try:
-            if not self.config['api_key'] or not self.config['api_secret']:
-                raise ValueError("Configuration Zadarma incomplète")
-            
-            # Préparation des paramètres
-            params = {
-                'from': self.config.get('from_number', ''),
-                'to': phone_number,
-                'call_id': call_id,
-                'timeout': self.config['call_timeout']
+            url = f"{self.base_url}{endpoint}"
+            headers = {
+                'Authorization': f'Bearer {self.api_key}',
+                'Content-Type': 'application/json'
             }
             
-            if callback_url:
-                params['callback_url'] = callback_url
-            
-            # Signature de la requête
-            signature = self._generate_signature(params)
-            params['signature'] = signature
-            
-            # Appel à l'API Zadarma
-            url = "https://api.zadarma.com/v1/request/callback/"
-            response = self.session.post(url, data=params)
-            
-            if response.status_code == 200:
-                result = response.json()
-                logger.info(f"Appel Zadarma lancé: {call_id} vers {phone_number}")
-                return result
+            if method == 'GET':
+                response = requests.get(url, headers=headers, params=data)
             else:
-                logger.error(f"Erreur API Zadarma: {response.text}")
-                return {'error': response.text}
-                
-        except Exception as e:
-            logger.error(f"Erreur lors de l'appel Zadarma {call_id}: {str(e)}")
-            return {'error': str(e)}
-    
-    def get_call_status(self, call_id: str) -> Dict:
-        """
-        Récupère le statut d'un appel
-        """
-        try:
-            params = {
-                'call_id': call_id
-            }
-            
-            signature = self._generate_signature(params)
-            params['signature'] = signature
-            
-            url = "https://api.zadarma.com/v1/request/callback/"
-            response = self.session.get(url, params=params)
+                response = requests.post(url, headers=headers, json=data)
             
             if response.status_code == 200:
                 return response.json()
             else:
-                return {'error': response.text}
+                self.logger.error(f"Erreur API Zadarma: {response.status_code} - {response.text}")
+                return None
                 
         except Exception as e:
-            logger.error(f"Erreur lors de la récupération du statut: {str(e)}")
-            return {'error': str(e)}
+            self.logger.error(f"Erreur requête Zadarma: {e}")
+            return None
     
-    def _generate_signature(self, params: Dict) -> str:
-        """Génère la signature pour l'API Zadarma"""
-        # Tri des paramètres par clé
-        sorted_params = sorted(params.items())
-        
-        # Construction de la chaîne à signer
-        sign_string = '&'.join([f"{key}={value}" for key, value in sorted_params])
-        
-        # Ajout de la clé secrète
-        sign_string += self.config['api_secret']
-        
-        # Génération du hash MD5
-        return hashlib.md5(sign_string.encode('utf-8')).hexdigest()
-    
-    def verify_webhook_signature(self, data: Dict, signature: str) -> bool:
-        """Vérifie la signature d'un webhook Zadarma"""
+    def make_call(self, call_id: str, phone_number: str, user_id: int) -> Optional[str]:
+        """Effectue un appel via Zadarma"""
         try:
-            # Construction de la chaîne à vérifier
-            sorted_data = sorted(data.items())
-            sign_string = '&'.join([f"{key}={value}" for key, value in sorted_data])
-            sign_string += self.config['api_secret']
+            data = {
+                'from': self.config.get('ZADARMA_FROM_NUMBER', ''),
+                'to': phone_number,
+                'call_id': call_id,
+                'user_id': user_id
+            }
             
-            expected_signature = hashlib.md5(sign_string.encode('utf-8')).hexdigest()
-            return signature == expected_signature
+            result = self._make_request('/v1/request/callback/', 'POST', data)
+            
+            if result and result.get('status') == 'success':
+                call_uuid = result.get('call_id')
+                self.logger.info(f"Appel Zadarma initié: {call_id} -> {call_uuid}")
+                return call_uuid
+            else:
+                self.logger.error(f"Échec initiation appel Zadarma: {result}")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"Erreur lors de l'appel Zadarma: {e}")
+            return None
+    
+    def hangup_call(self, call_uuid: str) -> bool:
+        """Raccroche un appel Zadarma"""
+        try:
+            data = {'call_id': call_uuid}
+            result = self._make_request('/v1/request/callback/hangup/', 'POST', data)
+            
+            if result and result.get('status') == 'success':
+                self.logger.info(f"Appel Zadarma raccroché: {call_uuid}")
+                return True
+            else:
+                self.logger.error(f"Échec raccrochage Zadarma: {result}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Erreur lors du raccrochage Zadarma: {e}")
+            return False
+    
+    def get_call_status(self, call_uuid: str) -> Optional[str]:
+        """Récupère le statut d'un appel Zadarma"""
+        try:
+            data = {'call_id': call_uuid}
+            result = self._make_request('/v1/request/callback/status/', 'GET', data)
+            
+            if result:
+                return result.get('status', 'unknown')
+            return None
             
         except Exception as e:
-            logger.error(f"Erreur lors de la vérification de signature: {str(e)}")
-            return False
+            self.logger.error(f"Erreur lors de la récupération du statut Zadarma: {e}")
+            return None
+    
+    def get_call_history(self, date_from: str = None, date_to: str = None) -> List[Dict[str, Any]]:
+        """Récupère l'historique des appels"""
+        try:
+            data = {}
+            if date_from:
+                data['date_from'] = date_from
+            if date_to:
+                data['date_to'] = date_to
+            
+            result = self._make_request('/v1/request/callback/history/', 'GET', data)
+            
+            if result and result.get('status') == 'success':
+                return result.get('calls', [])
+            return []
+            
+        except Exception as e:
+            self.logger.error(f"Erreur lors de la récupération de l'historique: {e}")
+            return []
 
-class TelephonyManager:
-    """
-    Gestionnaire principal de téléphonie
-    """
+
+class CallManager:
+    """Gestionnaire principal des appels"""
     
-    def __init__(self, app=None):
+    def __init__(self, app):
         self.app = app
-        self.asterisk = None
-        self.zadarma = None
-        self.active_calls = {}
-        
-        if app is not None:
-            self.init_app(app)
-    
-    def init_app(self, app):
-        """Initialise les gestionnaires de téléphonie"""
         self.asterisk = AsteriskManager(app)
         self.zadarma = ZadarmaManager(app)
+        self.logger = get_logger('call_manager')
         
-        logger.info("Gestionnaire de téléphonie initialisé")
+        # Configuration
+        self.primary_provider = app.config.get('PRIMARY_TELEPHONY_PROVIDER', 'asterisk')
+        self.recording_path = Path(app.config.get('UPLOAD_FOLDER', 'uploads')) / 'recordings'
+        self.recording_path.mkdir(parents=True, exist_ok=True)
     
-    def start_call(self, call_id: int, patient_id: int) -> Tuple[bool, str]:
-        """
-        Démarre un appel pour un patient
-        """
+    @track_call_operation('initiate')
+    def initiate_call(self, call_id: str, phone_number: str, user_id: int) -> bool:
+        """Initie un appel téléphonique"""
         try:
-            db = get_db()
+            # Mise à jour du statut de l'appel
+            call = Call.query.filter_by(call_id=call_id).first()
+            if not call:
+                self.logger.error(f"Appel non trouvé: {call_id}")
+                return False
             
-            # Récupération de l'appel et du patient
-            call = db.query(Call).filter(Call.id == call_id).first()
-            patient = db.query(Patient).filter(Patient.id == patient_id).first()
-            
-            if not call or not patient:
-                return False, "Appel ou patient non trouvé"
-            
-            if call.status != 'scheduled':
-                return False, f"Appel en statut {call.status}"
-            
-            # Mise à jour du statut
             call.status = 'in_progress'
-            call.start_time = datetime.now(timezone.utc)
-            call.updated_at = datetime.now(timezone.utc)
+            call.started_at = datetime.now(timezone.utc)
+            call.attempt_count += 1
+            call.last_attempt_at = datetime.now(timezone.utc)
             
-            # Lancement de l'appel selon la configuration
-            success = False
-            if self.asterisk and self.asterisk.test_connection():
-                success = self.asterisk.originate_call(
-                    call.call_id, 
-                    patient.phone_number
-                )
-            elif self.zadarma and self.zadarma.config['api_key']:
-                result = self.zadarma.make_call(
-                    call.call_id,
-                    patient.phone_number,
-                    f"{self.zadarma.config['webhook_url']}/api/webhooks/zadarma"
-                )
-                success = 'error' not in result
+            # Sélection du fournisseur
+            if self.primary_provider == 'asterisk':
+                success = self.asterisk.originate_call(call_id, phone_number)
             else:
-                return False, "Aucun service de téléphonie configuré"
+                success = self.zadarma.make_call(call_id, phone_number, user_id) is not None
             
             if success:
-                # Enregistrement de l'appel actif
-                self.active_calls[call.call_id] = {
-                    'call_id': call.id,
-                    'patient_id': patient_id,
-                    'start_time': call.start_time,
-                    'provider': 'asterisk' if self.asterisk else 'zadarma'
-                }
+                call.status = 'in_progress'
+                telephony_logger.log_call_start(call_id, phone_number, user_id)
                 
-                db.commit()
-                
-                # Métriques
-                record_call(call.status, call.direction, call.call_type)
-                
-                logger.info(f"Appel démarré: {call.call_id} vers {patient.phone_number}")
-                return True, "Appel démarré avec succès"
+                # Log d'audit
+                log_audit(
+                    user_id=user_id,
+                    action='CALL_STARTED',
+                    resource_type='call',
+                    resource_id=call_id,
+                    ip_address=None
+                )
             else:
-                # Restauration du statut en cas d'échec
-                call.status = 'scheduled'
-                call.start_time = None
-                db.commit()
-                return False, "Échec du lancement de l'appel"
-                
-        except Exception as e:
-            logger.error(f"Erreur lors du démarrage de l'appel {call_id}: {str(e)}")
-            return False, f"Erreur: {str(e)}"
-    
-    def end_call(self, call_id: int) -> Tuple[bool, str]:
-        """
-        Termine un appel
-        """
-        try:
-            db = get_db()
+                call.status = 'failed'
+                call.failure_reason = f"Échec initiation via {self.primary_provider}"
+                telephony_logger.log_call_error(call_id, "Échec initiation", phone_number)
             
-            call = db.query(Call).filter(Call.id == call_id).first()
-            if not call:
-                return False, "Appel non trouvé"
-            
-            if call.status != 'in_progress':
-                return False, f"Appel en statut {call.status}"
-            
-            # Calcul de la durée
-            end_time = datetime.now(timezone.utc)
-            duration = int((end_time - call.start_time).total_seconds()) if call.start_time else 0
-            
-            # Mise à jour du statut
-            call.status = 'completed'
-            call.end_time = end_time
-            call.duration = duration
-            call.updated_at = datetime.now(timezone.utc)
-            
-            # Suppression de l'appel actif
-            if call.call_id in self.active_calls:
-                del self.active_calls[call.call_id]
-            
-            db.commit()
-            
-            # Métriques
-            record_call(call.status, call.direction, call.call_type)
-            record_call_duration(call.status, duration)
-            
-            logger.info(f"Appel terminé: {call.call_id} - Durée: {duration}s")
-            return True, "Appel terminé avec succès"
+            db.session.commit()
+            return success
             
         except Exception as e:
-            logger.error(f"Erreur lors de la fin de l'appel {call_id}: {str(e)}")
-            return False, f"Erreur: {str(e)}"
-    
-    def cancel_call(self, call_id: int) -> Tuple[bool, str]:
-        """
-        Annule un appel
-        """
-        try:
-            db = get_db()
-            
-            call = db.query(Call).filter(Call.id == call_id).first()
-            if not call:
-                return False, "Appel non trouvé"
-            
-            if call.status in ['completed', 'failed']:
-                return False, f"Appel en statut {call.status}"
-            
-            # Annulation de l'appel
-            call.status = 'cancelled'
-            call.updated_at = datetime.now(timezone.utc)
-            
-            # Suppression de l'appel actif si nécessaire
-            if call.call_id in self.active_calls:
-                del self.active_calls[call.call_id]
-            
-            db.commit()
-            
-            # Métriques
-            record_call(call.status, call.direction, call.call_type)
-            
-            logger.info(f"Appel annulé: {call.call_id}")
-            return True, "Appel annulé avec succès"
-            
-        except Exception as e:
-            logger.error(f"Erreur lors de l'annulation de l'appel {call_id}: {str(e)}")
-            return False, f"Erreur: {str(e)}"
-    
-    def get_active_calls(self) -> List[Dict]:
-        """Récupère la liste des appels actifs"""
-        return list(self.active_calls.values())
-    
-    def process_webhook(self, provider: str, data: Dict) -> bool:
-        """
-        Traite les webhooks des fournisseurs de téléphonie
-        """
-        try:
-            if provider == 'zadarma':
-                return self._process_zadarma_webhook(data)
-            elif provider == 'asterisk':
-                return self._process_asterisk_webhook(data)
-            else:
-                logger.warning(f"Fournisseur de webhook non supporté: {provider}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Erreur lors du traitement du webhook {provider}: {str(e)}")
+            self.logger.error(f"Erreur lors de l'initiation d'appel: {e}")
             return False
     
-    def _process_zadarma_webhook(self, data: Dict) -> bool:
-        """Traite un webhook Zadarma"""
+    @track_call_operation('end')
+    def end_call(self, call_id: str, duration: int = None) -> bool:
+        """Termine un appel téléphonique"""
         try:
-            # Vérification de la signature
-            signature = data.get('signature', '')
-            if not self.zadarma.verify_webhook_signature(data, signature):
-                logger.warning("Signature webhook Zadarma invalide")
+            call = Call.query.filter_by(call_id=call_id).first()
+            if not call:
+                self.logger.error(f"Appel non trouvé: {call_id}")
                 return False
             
-            call_id = data.get('call_id')
-            event = data.get('event')
+            call.status = 'completed'
+            call.ended_at = datetime.now(timezone.utc)
+            if duration:
+                call.actual_duration = duration
+            
+            # Raccrochage via le fournisseur approprié
+            if self.primary_provider == 'asterisk':
+                # Récupération du canal depuis la base de données ou les logs
+                pass
+            else:
+                # Raccrochage Zadarma si nécessaire
+                pass
+            
+            telephony_logger.log_call_end(call_id, duration or 0, 'completed')
+            
+            # Log d'audit
+            log_audit(
+                user_id=call.user_id,
+                action='CALL_ENDED',
+                resource_type='call',
+                resource_id=call_id,
+                ip_address=None
+            )
+            
+            db.session.commit()
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Erreur lors de la terminaison d'appel: {e}")
+            return False
+    
+    def schedule_call(self, patient_id: int, user_id: int, scheduled_at: datetime, 
+                     phone_number: str, call_type: str = 'follow_up') -> Optional[str]:
+        """Planifie un appel"""
+        try:
+            # Génération d'un ID d'appel unique
+            call_id = f"CALL_{uuid.uuid4().hex[:8].upper()}"
+            
+            # Création de l'appel en base
+            call = Call(
+                call_id=call_id,
+                patient_id=patient_id,
+                user_id=user_id,
+                scheduled_at=scheduled_at,
+                phone_number=phone_number,
+                call_type=call_type,
+                status='scheduled'
+            )
+            
+            db.session.add(call)
+            db.session.commit()
+            
+            self.logger.info(f"Appel planifié: {call_id} pour {scheduled_at}")
+            
+            # Log d'audit
+            log_audit(
+                user_id=user_id,
+                action='CALL_SCHEDULED',
+                resource_type='call',
+                resource_id=call_id,
+                ip_address=None
+            )
+            
+            return call_id
+            
+        except Exception as e:
+            self.logger.error(f"Erreur lors de la planification d'appel: {e}")
+            return None
+    
+    def retry_failed_call(self, call_id: str) -> bool:
+        """Retente un appel échoué"""
+        try:
+            call = Call.query.filter_by(call_id=call_id).first()
+            if not call:
+                self.logger.error(f"Appel non trouvé: {call_id}")
+                return False
+            
+            if not call.can_retry():
+                self.logger.warning(f"Appel {call_id} ne peut pas être retenté")
+                return False
+            
+            # Retry de l'appel
+            return self.initiate_call(call_id, call.phone_number, call.user_id)
+            
+        except Exception as e:
+            self.logger.error(f"Erreur lors du retry d'appel: {e}")
+            return False
+    
+    def get_overdue_calls(self) -> List[Call]:
+        """Récupère les appels en retard"""
+        try:
+            overdue_calls = Call.query.filter(
+                Call.status == 'scheduled',
+                Call.scheduled_at < datetime.now(timezone.utc)
+            ).all()
+            
+            return overdue_calls
+            
+        except Exception as e:
+            self.logger.error(f"Erreur lors de la récupération des appels en retard: {e}")
+            return []
+    
+    def process_call_webhook(self, webhook_data: Dict[str, Any]) -> bool:
+        """Traite un webhook d'appel"""
+        try:
+            call_id = webhook_data.get('call_id')
+            event_type = webhook_data.get('event')
             
             if not call_id:
+                self.logger.error("Webhook sans call_id")
                 return False
             
-            db = get_db()
-            call = db.query(Call).filter(Call.call_id == call_id).first()
-            
+            call = Call.query.filter_by(call_id=call_id).first()
             if not call:
-                logger.warning(f"Appel non trouvé pour le webhook: {call_id}")
+                self.logger.error(f"Appel non trouvé pour webhook: {call_id}")
                 return False
             
             # Traitement selon le type d'événement
-            if event == 'call_started':
+            if event_type == 'call_started':
                 call.status = 'in_progress'
-                call.start_time = datetime.now(timezone.utc)
-            elif event == 'call_ended':
+                call.started_at = datetime.now(timezone.utc)
+                
+            elif event_type == 'call_answered':
+                call.status = 'in_progress'
+                
+            elif event_type == 'call_ended':
+                duration = webhook_data.get('duration', 0)
                 call.status = 'completed'
-                call.end_time = datetime.now(timezone.utc)
-                if call.start_time:
-                    call.duration = int((call.end_time - call.start_time).total_seconds())
-            elif event == 'call_failed':
+                call.ended_at = datetime.now(timezone.utc)
+                call.actual_duration = duration
+                
+            elif event_type == 'call_failed':
                 call.status = 'failed'
+                call.failure_reason = webhook_data.get('reason', 'Unknown error')
+                call.ended_at = datetime.now(timezone.utc)
             
-            call.updated_at = datetime.now(timezone.utc)
-            db.commit()
+            # Sauvegarde de l'enregistrement si disponible
+            if 'recording_url' in webhook_data:
+                recording_path = self._download_recording(
+                    webhook_data['recording_url'], 
+                    call_id
+                )
+                if recording_path:
+                    call.call_recording_path = str(recording_path)
             
-            logger.info(f"Webhook Zadarma traité: {call_id} - {event}")
+            db.session.commit()
+            
+            self.logger.info(f"Webhook traité: {event_type} pour {call_id}")
             return True
             
         except Exception as e:
-            logger.error(f"Erreur lors du traitement du webhook Zadarma: {str(e)}")
+            self.logger.error(f"Erreur lors du traitement du webhook: {e}")
             return False
     
-    def _process_asterisk_webhook(self, data: Dict) -> bool:
-        """Traite un webhook Asterisk"""
+    def _download_recording(self, recording_url: str, call_id: str) -> Optional[Path]:
+        """Télécharge un enregistrement d'appel"""
         try:
-            # Implémentation spécifique pour Asterisk
-            # À adapter selon la configuration Asterisk
-            logger.info(f"Webhook Asterisk reçu: {data}")
-            return True
+            response = requests.get(recording_url, timeout=30)
+            if response.status_code == 200:
+                recording_file = self.recording_path / f"{call_id}.wav"
+                recording_file.write_bytes(response.content)
+                self.logger.info(f"Enregistrement téléchargé: {recording_file}")
+                return recording_file
+            else:
+                self.logger.error(f"Échec téléchargement enregistrement: {response.status_code}")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"Erreur lors du téléchargement de l'enregistrement: {e}")
+            return None
+    
+    def get_call_statistics(self, user_id: int = None, date_from: datetime = None, 
+                           date_to: datetime = None) -> Dict[str, Any]:
+        """Récupère les statistiques d'appels"""
+        try:
+            query = Call.query
+            
+            if user_id:
+                query = query.filter(Call.user_id == user_id)
+            
+            if date_from:
+                query = query.filter(Call.created_at >= date_from)
+            
+            if date_to:
+                query = query.filter(Call.created_at <= date_to)
+            
+            calls = query.all()
+            
+            stats = {
+                'total_calls': len(calls),
+                'completed_calls': len([c for c in calls if c.status == 'completed']),
+                'failed_calls': len([c for c in calls if c.status == 'failed']),
+                'scheduled_calls': len([c for c in calls if c.status == 'scheduled']),
+                'average_duration': 0,
+                'total_duration': 0
+            }
+            
+            completed_calls = [c for c in calls if c.actual_duration]
+            if completed_calls:
+                stats['total_duration'] = sum(c.actual_duration for c in completed_calls)
+                stats['average_duration'] = stats['total_duration'] / len(completed_calls)
+            
+            return stats
             
         except Exception as e:
-            logger.error(f"Erreur lors du traitement du webhook Asterisk: {str(e)}")
-            return False 
+            self.logger.error(f"Erreur lors de la récupération des statistiques: {e}")
+            return {}
+
+
+# Instance globale du gestionnaire d'appels
+call_manager = None
+
+
+def init_telephony(app):
+    """Initialisation du système de téléphonie"""
+    global call_manager
+    call_manager = CallManager(app)
+    logger.info("Système de téléphonie initialisé")
+
+
+def get_call_manager() -> CallManager:
+    """Récupère l'instance du gestionnaire d'appels"""
+    return call_manager 

@@ -1,8 +1,6 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 HelloJADE v1.0 - Module de logging
-Configuration du logging structuré avec intégration ELK Stack
+Système de logs structurés compatible ELK Stack
 """
 
 import logging
@@ -10,186 +8,78 @@ import logging.handlers
 import json
 import sys
 from datetime import datetime, timezone
+from typing import Dict, Any, Optional
 from pathlib import Path
+
+import structlog
 from pythonjsonlogger import jsonlogger
-from elasticsearch import Elasticsearch
-from elasticsearch.exceptions import ConnectionError as ESConnectionError
 
-class HelloJADELogFormatter(jsonlogger.JsonFormatter):
-    """
-    Formateur JSON personnalisé pour HelloJADE
-    """
-    
-    def add_fields(self, log_record, record, message_dict):
-        super(HelloJADELogFormatter, self).add_fields(log_record, record, message_dict)
-        
-        # Ajout des champs personnalisés
-        log_record['timestamp'] = datetime.now(timezone.utc).isoformat()
-        log_record['level'] = record.levelname
-        log_record['logger'] = record.name
-        log_record['module'] = record.module
-        log_record['function'] = record.funcName
-        log_record['line'] = record.lineno
-        
-        # Ajout des informations de requête si disponibles
-        if hasattr(record, 'request_id'):
-            log_record['request_id'] = record.request_id
-        if hasattr(record, 'user_id'):
-            log_record['user_id'] = record.user_id
-        if hasattr(record, 'ip_address'):
-            log_record['ip_address'] = record.ip_address
-        
-        # Suppression des champs redondants
-        if 'asctime' in log_record:
-            del log_record['asctime']
-        if 'created' in log_record:
-            del log_record['created']
-        if 'msecs' in log_record:
-            del log_record['msecs']
-        if 'relativeCreated' in log_record:
-            del log_record['relativeCreated']
-        if 'thread' in log_record:
-            del log_record['thread']
-        if 'threadName' in log_record:
-            del log_record['threadName']
-        if 'processName' in log_record:
-            del log_record['processName']
-        if 'process' in log_record:
-            del log_record['process']
 
-class ElasticsearchHandler(logging.Handler):
-    """
-    Handler pour envoyer les logs vers Elasticsearch
-    """
+def init_logging(app):
+    """Initialisation du système de logging"""
     
-    def __init__(self, es_host='localhost', es_port=9200, index_prefix='hellojade'):
-        super().__init__()
-        self.es_host = es_host
-        self.es_port = es_port
-        self.index_prefix = index_prefix
-        self.es_client = None
-        self._connect()
-    
-    def _connect(self):
-        """Établit la connexion Elasticsearch"""
-        try:
-            self.es_client = Elasticsearch([{
-                'host': self.es_host,
-                'port': self.es_port
-            }])
-            
-            # Test de connexion
-            if self.es_client.ping():
-                logging.getLogger(__name__).info("Connexion Elasticsearch établie")
-            else:
-                logging.getLogger(__name__).warning("Impossible de se connecter à Elasticsearch")
-                self.es_client = None
-                
-        except ESConnectionError:
-            logging.getLogger(__name__).warning("Elasticsearch non accessible")
-            self.es_client = None
-        except Exception as e:
-            logging.getLogger(__name__).error(f"Erreur de connexion Elasticsearch: {str(e)}")
-            self.es_client = None
-    
-    def emit(self, record):
-        """Envoie le log vers Elasticsearch"""
-        if not self.es_client:
-            return
-        
-        try:
-            # Création de l'index avec la date
-            index_name = f"{self.index_prefix}-{datetime.now().strftime('%Y.%m.%d')}"
-            
-            # Préparation du document
-            log_entry = {
-                'timestamp': datetime.now(timezone.utc).isoformat(),
-                'level': record.levelname,
-                'logger': record.name,
-                'module': record.module,
-                'function': record.funcName,
-                'line': record.lineno,
-                'message': record.getMessage()
-            }
-            
-            # Ajout des informations de requête si disponibles
-            if hasattr(record, 'request_id'):
-                log_entry['request_id'] = record.request_id
-            if hasattr(record, 'user_id'):
-                log_entry['user_id'] = record.user_id
-            if hasattr(record, 'ip_address'):
-                log_entry['ip_address'] = record.ip_address
-            
-            # Ajout des données d'exception si présentes
-            if record.exc_info:
-                log_entry['exception'] = self.formatException(record.exc_info)
-            
-            # Envoi vers Elasticsearch
-            self.es_client.index(
-                index=index_name,
-                body=log_entry,
-                doc_type='_doc'
-            )
-            
-        except Exception as e:
-            # Log de l'erreur sans créer de boucle infinie
-            sys.stderr.write(f"Erreur lors de l'envoi vers Elasticsearch: {str(e)}\n")
-
-class StructuredLogger:
-    """
-    Logger structuré pour HelloJADE
-    """
-    
-    def __init__(self, name, level=logging.INFO):
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(level)
-        self.name = name
-    
-    def _log_with_context(self, level, message, **kwargs):
-        """Log avec contexte supplémentaire"""
-        extra = {
-            'request_id': getattr(g, 'request_id', None) if 'g' in globals() else None,
-            'user_id': getattr(g, 'user_id', None) if 'g' in globals() else None,
-            'ip_address': getattr(g, 'ip_address', None) if 'g' in globals() else None
-        }
-        extra.update(kwargs)
-        
-        self.logger.log(level, message, extra=extra)
-    
-    def debug(self, message, **kwargs):
-        self._log_with_context(logging.DEBUG, message, **kwargs)
-    
-    def info(self, message, **kwargs):
-        self._log_with_context(logging.INFO, message, **kwargs)
-    
-    def warning(self, message, **kwargs):
-        self._log_with_context(logging.WARNING, message, **kwargs)
-    
-    def error(self, message, **kwargs):
-        self._log_with_context(logging.ERROR, message, **kwargs)
-    
-    def critical(self, message, **kwargs):
-        self._log_with_context(logging.CRITICAL, message, **kwargs)
-    
-    def exception(self, message, **kwargs):
-        self._log_with_context(logging.ERROR, message, exc_info=True, **kwargs)
-
-def setup_logging(app):
-    """
-    Configure le système de logging pour l'application Flask
-    """
     # Configuration de base
-    log_level = getattr(logging, app.config.get('LOG_LEVEL', 'INFO').upper())
-    log_format = app.config.get('LOG_FORMAT', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    log_file = app.config.get('LOG_FILE', './logs/hellojade.log')
-    log_max_size = app.config.get('LOG_MAX_SIZE', '100MB')
-    log_backup_count = app.config.get('LOG_BACKUP_COUNT', 5)
+    log_level = getattr(logging, app.config.get('LOG_LEVEL', 'INFO'))
+    log_format = app.config.get('LOG_FORMAT', 'json')
+    log_file = app.config.get('LOG_FILE', 'logs/hellojade.log')
     
-    # Création du dossier de logs
-    log_path = Path(log_file)
-    log_path.parent.mkdir(parents=True, exist_ok=True)
+    # Création du répertoire de logs
+    Path(log_file).parent.mkdir(parents=True, exist_ok=True)
     
-    # Configuration du root logger
+    # Configuration structlog
+    structlog.configure(
+        processors=[
+            structlog.stdlib.filter_by_level,
+            structlog.stdlib.add_logger_name,
+            structlog.stdlib.add_log_level,
+            structlog.stdlib.PositionalArgumentsFormatter(),
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.processors.StackInfoRenderer(),
+            structlog.processors.format_exc_info,
+            structlog.processors.UnicodeDecoder(),
+            structlog.processors.JSONRenderer()
+        ],
+        context_class=dict,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=True,
+    )
+    
+    # Configuration des handlers
+    handlers = []
+    
+    # Handler console
+    if app.config.get('DEBUG', False):
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(log_level)
+        
+        if log_format == 'json':
+            console_handler.setFormatter(jsonlogger.JsonFormatter())
+        else:
+            console_handler.setFormatter(logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            ))
+        
+        handlers.append(console_handler)
+    
+    # Handler fichier
+    file_handler = logging.handlers.RotatingFileHandler(
+        log_file,
+        maxBytes=app.config.get('LOG_MAX_SIZE', 10485760),  # 10MB
+        backupCount=app.config.get('LOG_BACKUP_COUNT', 5)
+    )
+    file_handler.setLevel(log_level)
+    
+    if log_format == 'json':
+        file_handler.setFormatter(jsonlogger.JsonFormatter())
+    else:
+        file_handler.setFormatter(logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        ))
+    
+    handlers.append(file_handler)
+    
+    # Configuration du logger racine
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
     
@@ -197,70 +87,18 @@ def setup_logging(app):
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
     
-    # Handler pour la console (format JSON en production, standard en développement)
-    console_handler = logging.StreamHandler(sys.stdout)
-    if app.config.get('ENVIRONMENT') == 'production':
-        console_formatter = HelloJADELogFormatter(
-            '%(timestamp)s %(level)s %(name)s %(module)s %(function)s %(line)d %(message)s'
-        )
-    else:
-        console_formatter = logging.Formatter(log_format)
-    
-    console_handler.setFormatter(console_formatter)
-    console_handler.setLevel(log_level)
-    root_logger.addHandler(console_handler)
-    
-    # Handler pour les fichiers (rotation automatique)
-    file_handler = logging.handlers.RotatingFileHandler(
-        log_file,
-        maxBytes=_parse_size(log_max_size),
-        backupCount=log_backup_count,
-        encoding='utf-8'
-    )
-    
-    file_formatter = HelloJADELogFormatter(
-        '%(timestamp)s %(level)s %(name)s %(module)s %(function)s %(line)d %(message)s'
-    )
-    file_handler.setFormatter(file_formatter)
-    file_handler.setLevel(log_level)
-    root_logger.addHandler(file_handler)
-    
-    # Handler pour les erreurs critiques (fichier séparé)
-    error_log_file = log_path.parent / 'hellojade-error.log'
-    error_handler = logging.handlers.RotatingFileHandler(
-        error_log_file,
-        maxBytes=_parse_size(log_max_size),
-        backupCount=log_backup_count,
-        encoding='utf-8'
-    )
-    error_handler.setLevel(logging.ERROR)
-    error_handler.setFormatter(file_formatter)
-    root_logger.addHandler(error_handler)
-    
-    # Handler Elasticsearch si configuré
-    if app.config.get('ELASTICSEARCH_HOST'):
-        try:
-            es_handler = ElasticsearchHandler(
-                es_host=app.config.get('ELASTICSEARCH_HOST', 'localhost'),
-                es_port=app.config.get('ELASTICSEARCH_PORT', 9200),
-                index_prefix=app.config.get('ELASTICSEARCH_INDEX_PREFIX', 'hellojade')
-            )
-            es_handler.setLevel(logging.INFO)
-            root_logger.addHandler(es_handler)
-            app.logger.info("Handler Elasticsearch configuré")
-        except Exception as e:
-            app.logger.warning(f"Impossible de configurer Elasticsearch: {str(e)}")
+    # Ajout des nouveaux handlers
+    for handler in handlers:
+        root_logger.addHandler(handler)
     
     # Configuration des loggers spécifiques
     _configure_specific_loggers(app)
     
-    # Log de démarrage
-    app.logger.info(f"Logging configuré - Niveau: {app.config.get('LOG_LEVEL', 'INFO')}")
-    app.logger.info(f"Fichier de log: {log_file}")
-    app.logger.info(f"Environnement: {app.config.get('ENVIRONMENT', 'production')}")
+    app.logger.info("Système de logging initialisé")
+
 
 def _configure_specific_loggers(app):
-    """Configure les loggers spécifiques"""
+    """Configuration des loggers spécifiques"""
     
     # Logger pour les requêtes HTTP
     http_logger = logging.getLogger('werkzeug')
@@ -268,7 +106,7 @@ def _configure_specific_loggers(app):
     
     # Logger pour SQLAlchemy
     sqlalchemy_logger = logging.getLogger('sqlalchemy.engine')
-    if app.config.get('DEBUG'):
+    if app.config.get('DEBUG', False):
         sqlalchemy_logger.setLevel(logging.INFO)
     else:
         sqlalchemy_logger.setLevel(logging.WARNING)
@@ -277,123 +115,297 @@ def _configure_specific_loggers(app):
     oracle_logger = logging.getLogger('cx_Oracle')
     oracle_logger.setLevel(logging.WARNING)
     
-    # Logger pour les requêtes LDAP
+    # Logger pour LDAP
     ldap_logger = logging.getLogger('ldap')
     ldap_logger.setLevel(logging.WARNING)
     
-    # Logger pour les requêtes HTTP
+    # Logger pour les requêtes HTTP externes
     requests_logger = logging.getLogger('urllib3')
     requests_logger.setLevel(logging.WARNING)
     
-    # Logger pour les requêtes Elasticsearch
-    es_logger = logging.getLogger('elasticsearch')
-    es_logger.setLevel(logging.WARNING)
+    # Logger pour les tâches en arrière-plan
+    celery_logger = logging.getLogger('celery')
+    celery_logger.setLevel(logging.INFO)
 
-def _parse_size(size_str):
-    """Parse une taille de fichier (ex: '100MB')"""
-    size_str = size_str.upper()
-    if size_str.endswith('KB'):
-        return int(size_str[:-2]) * 1024
-    elif size_str.endswith('MB'):
-        return int(size_str[:-2]) * 1024 * 1024
-    elif size_str.endswith('GB'):
-        return int(size_str[:-2]) * 1024 * 1024 * 1024
-    else:
-        return int(size_str)
 
-def get_logger(name):
-    """
-    Retourne un logger structuré
-    """
-    return StructuredLogger(name)
+class HelloJADELogger:
+    """Logger personnalisé pour HelloJADE"""
+    
+    def __init__(self, name: str):
+        self.logger = structlog.get_logger(name)
+    
+    def info(self, message: str, **kwargs):
+        """Log niveau INFO"""
+        self.logger.info(message, **kwargs)
+    
+    def warning(self, message: str, **kwargs):
+        """Log niveau WARNING"""
+        self.logger.warning(message, **kwargs)
+    
+    def error(self, message: str, **kwargs):
+        """Log niveau ERROR"""
+        self.logger.error(message, **kwargs)
+    
+    def debug(self, message: str, **kwargs):
+        """Log niveau DEBUG"""
+        self.logger.debug(message, **kwargs)
+    
+    def critical(self, message: str, **kwargs):
+        """Log niveau CRITICAL"""
+        self.logger.critical(message, **kwargs)
+    
+    def exception(self, message: str, **kwargs):
+        """Log d'exception avec traceback"""
+        self.logger.exception(message, **kwargs)
 
-# Loggers spécialisés
-def get_auth_logger():
-    """Logger pour l'authentification"""
-    return get_logger('hellojade.auth')
 
-def get_db_logger():
-    """Logger pour la base de données"""
-    return get_logger('hellojade.database')
+def get_logger(name: str) -> HelloJADELogger:
+    """Récupère un logger HelloJADE"""
+    return HelloJADELogger(name)
 
-def get_telephony_logger():
-    """Logger pour la téléphonie"""
-    return get_logger('hellojade.telephony')
 
-def get_ai_logger():
-    """Logger pour l'IA"""
-    return get_logger('hellojade.ai')
+class RequestLogger:
+    """Logger pour les requêtes HTTP"""
+    
+    def __init__(self, app):
+        self.app = app
+        self.logger = get_logger('http')
+    
+    def log_request(self, request, response=None, duration=None):
+        """Log d'une requête HTTP"""
+        log_data = {
+            'method': request.method,
+            'path': request.path,
+            'remote_addr': request.remote_addr,
+            'user_agent': request.headers.get('User-Agent', ''),
+            'content_length': request.content_length,
+            'status_code': response.status_code if response else None,
+            'duration_ms': duration * 1000 if duration else None,
+            'user_id': self._get_user_id(request),
+            'request_id': request.headers.get('X-Request-ID', ''),
+        }
+        
+        # Ajout des paramètres de requête (sans données sensibles)
+        if request.args:
+            log_data['query_params'] = dict(request.args)
+        
+        # Ajout des headers (sans données sensibles)
+        safe_headers = {}
+        for key, value in request.headers.items():
+            if key.lower() not in ['authorization', 'cookie', 'x-api-key']:
+                safe_headers[key] = value
+        log_data['headers'] = safe_headers
+        
+        # Niveau de log selon le statut de réponse
+        if response and response.status_code >= 400:
+            self.logger.warning("Requête HTTP", **log_data)
+        else:
+            self.logger.info("Requête HTTP", **log_data)
+    
+    def log_error(self, request, error, duration=None):
+        """Log d'une erreur HTTP"""
+        log_data = {
+            'method': request.method,
+            'path': request.path,
+            'remote_addr': request.remote_addr,
+            'user_agent': request.headers.get('User-Agent', ''),
+            'error_type': type(error).__name__,
+            'error_message': str(error),
+            'duration_ms': duration * 1000 if duration else None,
+            'user_id': self._get_user_id(request),
+            'request_id': request.headers.get('X-Request-ID', ''),
+        }
+        
+        self.logger.error("Erreur HTTP", **log_data)
+    
+    def _get_user_id(self, request) -> Optional[int]:
+        """Récupère l'ID utilisateur depuis le token JWT"""
+        try:
+            from flask_jwt_extended import get_jwt_identity
+            identity = get_jwt_identity()
+            return identity.get('user_id') if identity else None
+        except Exception:
+            return None
 
-def get_api_logger():
-    """Logger pour l'API"""
-    return get_logger('hellojade.api')
 
-def get_security_logger():
-    """Logger pour la sécurité"""
-    return get_logger('hellojade.security')
+class DatabaseLogger:
+    """Logger pour les opérations de base de données"""
+    
+    def __init__(self):
+        self.logger = get_logger('database')
+    
+    def log_query(self, query: str, params: Dict = None, duration: float = None):
+        """Log d'une requête SQL"""
+        log_data = {
+            'query': query,
+            'params': params,
+            'duration_ms': duration * 1000 if duration else None,
+        }
+        
+        self.logger.debug("Requête SQL", **log_data)
+    
+    def log_connection(self, action: str, success: bool, error: str = None):
+        """Log d'une connexion à la base de données"""
+        log_data = {
+            'action': action,
+            'success': success,
+            'error': error,
+        }
+        
+        if success:
+            self.logger.info("Connexion base de données", **log_data)
+        else:
+            self.logger.error("Erreur connexion base de données", **log_data)
 
-def get_monitoring_logger():
-    """Logger pour le monitoring"""
-    return get_logger('hellojade.monitoring')
 
-# Fonctions utilitaires pour le logging
-def log_request_start(request, user_id=None):
-    """Log le début d'une requête"""
-    logger = get_api_logger()
-    logger.info(
-        f"Request started - {request.method} {request.path}",
-        request_id=getattr(g, 'request_id', None),
-        user_id=user_id,
-        ip_address=request.remote_addr,
-        user_agent=request.headers.get('User-Agent', ''),
-        method=request.method,
-        path=request.path,
-        query_string=request.query_string.decode('utf-8') if request.query_string else None
-    )
+class SecurityLogger:
+    """Logger pour les événements de sécurité"""
+    
+    def __init__(self):
+        self.logger = get_logger('security')
+    
+    def log_auth_attempt(self, username: str, success: bool, ip_address: str = None, error: str = None):
+        """Log d'une tentative d'authentification"""
+        log_data = {
+            'username': username,
+            'success': success,
+            'ip_address': ip_address,
+            'error': error,
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+        }
+        
+        if success:
+            self.logger.info("Authentification réussie", **log_data)
+        else:
+            self.logger.warning("Tentative d'authentification échouée", **log_data)
+    
+    def log_permission_denied(self, user_id: int, resource: str, action: str, ip_address: str = None):
+        """Log d'un accès refusé"""
+        log_data = {
+            'user_id': user_id,
+            'resource': resource,
+            'action': action,
+            'ip_address': ip_address,
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+        }
+        
+        self.logger.warning("Accès refusé", **log_data)
+    
+    def log_suspicious_activity(self, activity_type: str, details: Dict, ip_address: str = None):
+        """Log d'une activité suspecte"""
+        log_data = {
+            'activity_type': activity_type,
+            'details': details,
+            'ip_address': ip_address,
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+        }
+        
+        self.logger.warning("Activité suspecte détectée", **log_data)
 
-def log_request_end(request, response, duration, user_id=None):
-    """Log la fin d'une requête"""
-    logger = get_api_logger()
-    logger.info(
-        f"Request completed - {request.method} {request.path}",
-        request_id=getattr(g, 'request_id', None),
-        user_id=user_id,
-        ip_address=request.remote_addr,
-        method=request.method,
-        path=request.path,
-        status_code=response.status_code,
-        duration=duration,
-        content_length=len(response.get_data()) if response else 0
-    )
 
-def log_security_event(event_type, details, user_id=None, ip_address=None):
-    """Log un événement de sécurité"""
-    logger = get_security_logger()
-    logger.warning(
-        f"Security event: {event_type}",
-        event_type=event_type,
-        user_id=user_id,
-        ip_address=ip_address,
-        details=details
-    )
+class AILogger:
+    """Logger pour les opérations IA"""
+    
+    def __init__(self):
+        self.logger = get_logger('ai')
+    
+    def log_transcription(self, call_id: int, model: str, duration: float, success: bool, error: str = None):
+        """Log d'une transcription IA"""
+        log_data = {
+            'call_id': call_id,
+            'model': model,
+            'duration_ms': duration * 1000,
+            'success': success,
+            'error': error,
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+        }
+        
+        if success:
+            self.logger.info("Transcription IA réussie", **log_data)
+        else:
+            self.logger.error("Erreur transcription IA", **log_data)
+    
+    def log_analysis(self, call_id: int, analysis_type: str, model: str, duration: float, success: bool, error: str = None):
+        """Log d'une analyse IA"""
+        log_data = {
+            'call_id': call_id,
+            'analysis_type': analysis_type,
+            'model': model,
+            'duration_ms': duration * 1000,
+            'success': success,
+            'error': error,
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+        }
+        
+        if success:
+            self.logger.info("Analyse IA réussie", **log_data)
+        else:
+            self.logger.error("Erreur analyse IA", **log_data)
 
-def log_performance_metric(metric_name, value, unit=None, tags=None):
-    """Log une métrique de performance"""
-    logger = get_monitoring_logger()
-    logger.info(
-        f"Performance metric: {metric_name}",
-        metric_name=metric_name,
-        value=value,
-        unit=unit,
-        tags=tags or {}
-    )
 
-def log_business_event(event_type, details, user_id=None):
-    """Log un événement métier"""
-    logger = get_logger('hellojade.business')
-    logger.info(
-        f"Business event: {event_type}",
-        event_type=event_type,
-        user_id=user_id,
-        details=details
-    ) 
+class TelephonyLogger:
+    """Logger pour les opérations téléphoniques"""
+    
+    def __init__(self):
+        self.logger = get_logger('telephony')
+    
+    def log_call_start(self, call_id: str, phone_number: str, user_id: int):
+        """Log du démarrage d'un appel"""
+        log_data = {
+            'call_id': call_id,
+            'phone_number': phone_number,
+            'user_id': user_id,
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+        }
+        
+        self.logger.info("Démarrage appel", **log_data)
+    
+    def log_call_end(self, call_id: str, duration: int, status: str):
+        """Log de la fin d'un appel"""
+        log_data = {
+            'call_id': call_id,
+            'duration_seconds': duration,
+            'status': status,
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+        }
+        
+        self.logger.info("Fin appel", **log_data)
+    
+    def log_call_error(self, call_id: str, error: str, phone_number: str = None):
+        """Log d'une erreur d'appel"""
+        log_data = {
+            'call_id': call_id,
+            'error': error,
+            'phone_number': phone_number,
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+        }
+        
+        self.logger.error("Erreur appel", **log_data)
+
+
+# Instances globales des loggers
+request_logger = RequestLogger(None)
+db_logger = DatabaseLogger()
+security_logger = SecurityLogger()
+ai_logger = AILogger()
+telephony_logger = TelephonyLogger()
+
+
+def log_structured(level: str, message: str, **kwargs):
+    """Log structuré générique"""
+    logger = get_logger('application')
+    
+    # Ajout du timestamp
+    kwargs['timestamp'] = datetime.now(timezone.utc).isoformat()
+    
+    # Log selon le niveau
+    if level.upper() == 'INFO':
+        logger.info(message, **kwargs)
+    elif level.upper() == 'WARNING':
+        logger.warning(message, **kwargs)
+    elif level.upper() == 'ERROR':
+        logger.error(message, **kwargs)
+    elif level.upper() == 'DEBUG':
+        logger.debug(message, **kwargs)
+    elif level.upper() == 'CRITICAL':
+        logger.critical(message, **kwargs) 

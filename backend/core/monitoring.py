@@ -1,471 +1,505 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 HelloJADE v1.0 - Module de monitoring
-Configuration Prometheus et métriques personnalisées
+Métriques Prometheus et health checks pour l'observabilité
 """
 
 import time
 import psutil
-import threading
+import logging
 from datetime import datetime, timezone
+from typing import Dict, Any, Optional
+from functools import wraps
+
 from prometheus_client import (
     Counter, Histogram, Gauge, Summary, generate_latest,
     CONTENT_TYPE_LATEST, REGISTRY
 )
-from flask import Response, request, g
-import logging
+from flask import request, Response, jsonify
 
-logger = logging.getLogger(__name__)
+from core.database import db
+from core.logging import get_logger
 
-class HelloJADEMetrics:
-    """
-    Métriques personnalisées pour HelloJADE
-    """
+logger = get_logger('monitoring')
+
+# Métriques Prometheus
+REQUEST_COUNT = Counter(
+    'hellojade_http_requests_total',
+    'Total des requêtes HTTP',
+    ['method', 'endpoint', 'status']
+)
+
+REQUEST_DURATION = Histogram(
+    'hellojade_http_request_duration_seconds',
+    'Durée des requêtes HTTP',
+    ['method', 'endpoint']
+)
+
+ACTIVE_USERS = Gauge(
+    'hellojade_active_users',
+    'Nombre d\'utilisateurs actifs'
+)
+
+DATABASE_CONNECTIONS = Gauge(
+    'hellojade_database_connections',
+    'Nombre de connexions actives à la base de données'
+)
+
+CALL_COUNT = Counter(
+    'hellojade_calls_total',
+    'Total des appels',
+    ['status', 'type']
+)
+
+AI_PROCESSING_TIME = Histogram(
+    'hellojade_ai_processing_duration_seconds',
+    'Temps de traitement IA',
+    ['type', 'model']
+)
+
+AI_SUCCESS_RATE = Counter(
+    'hellojade_ai_operations_total',
+    'Total des opérations IA',
+    ['type', 'status']
+)
+
+ERROR_COUNT = Counter(
+    'hellojade_errors_total',
+    'Total des erreurs',
+    ['type', 'module']
+)
+
+SYSTEM_MEMORY = Gauge(
+    'hellojade_system_memory_bytes',
+    'Utilisation mémoire système'
+)
+
+SYSTEM_CPU = Gauge(
+    'hellojade_system_cpu_percent',
+    'Utilisation CPU système'
+)
+
+SYSTEM_DISK = Gauge(
+    'hellojade_system_disk_usage_percent',
+    'Utilisation disque système'
+)
+
+
+def init_monitoring(app):
+    """Initialisation du système de monitoring"""
     
-    def __init__(self):
-        # Métriques HTTP
-        self.http_requests_total = Counter(
-            'hellojade_http_requests_total',
-            'Total des requêtes HTTP',
-            ['method', 'endpoint', 'status']
-        )
-        
-        self.http_request_duration_seconds = Histogram(
-            'hellojade_http_request_duration_seconds',
-            'Durée des requêtes HTTP',
-            ['method', 'endpoint'],
-            buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0]
-        )
-        
-        # Métriques d'authentification
-        self.auth_attempts_total = Counter(
-            'hellojade_auth_attempts_total',
-            'Total des tentatives d\'authentification',
-            ['status', 'method']
-        )
-        
-        self.active_sessions = Gauge(
-            'hellojade_active_sessions',
-            'Nombre de sessions actives'
-        )
-        
-        # Métriques de base de données
-        self.db_connections_active = Gauge(
-            'hellojade_db_connections_active',
-            'Nombre de connexions actives à la base de données'
-        )
-        
-        self.db_query_duration_seconds = Histogram(
-            'hellojade_db_query_duration_seconds',
-            'Durée des requêtes de base de données',
-            ['operation'],
-            buckets=[0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0]
-        )
-        
-        # Métriques de téléphonie
-        self.calls_total = Counter(
-            'hellojade_calls_total',
-            'Total des appels téléphoniques',
-            ['status', 'direction', 'type']
-        )
-        
-        self.calls_active = Gauge(
-            'hellojade_calls_active',
-            'Nombre d\'appels actifs'
-        )
-        
-        self.calls_duration_seconds = Histogram(
-            'hellojade_calls_duration_seconds',
-            'Durée des appels téléphoniques',
-            ['status'],
-            buckets=[30, 60, 120, 300, 600, 1800, 3600]
-        )
-        
-        # Métriques IA
-        self.ai_transcriptions_total = Counter(
-            'hellojade_ai_transcriptions_total',
-            'Total des transcriptions IA',
-            ['model', 'status']
-        )
-        
-        self.ai_transcription_duration_seconds = Histogram(
-            'hellojade_ai_transcription_duration_seconds',
-            'Durée des transcriptions IA',
-            ['model'],
-            buckets=[1, 5, 10, 30, 60, 120, 300]
-        )
-        
-        self.ai_analyses_total = Counter(
-            'hellojade_ai_analyses_total',
-            'Total des analyses IA',
-            ['type', 'model', 'status']
-        )
-        
-        self.ai_analysis_duration_seconds = Histogram(
-            'hellojade_ai_analysis_duration_seconds',
-            'Durée des analyses IA',
-            ['type', 'model'],
-            buckets=[1, 5, 10, 30, 60, 120, 300]
-        )
-        
-        # Métriques système
-        self.system_cpu_usage = Gauge(
-            'hellojade_system_cpu_usage_percent',
-            'Utilisation CPU du système'
-        )
-        
-        self.system_memory_usage = Gauge(
-            'hellojade_system_memory_usage_bytes',
-            'Utilisation mémoire du système'
-        )
-        
-        self.system_disk_usage = Gauge(
-            'hellojade_system_disk_usage_bytes',
-            'Utilisation disque du système',
-            ['mount_point']
-        )
-        
-        self.system_uptime_seconds = Gauge(
-            'hellojade_system_uptime_seconds',
-            'Temps de fonctionnement du système'
-        )
-        
-        # Métriques métier
-        self.patients_total = Gauge(
-            'hellojade_patients_total',
-            'Nombre total de patients',
-            ['status']
-        )
-        
-        self.medical_records_total = Counter(
-            'hellojade_medical_records_total',
-            'Total des dossiers médicaux',
-            ['type', 'severity']
-        )
-        
-        self.audit_events_total = Counter(
-            'hellojade_audit_events_total',
-            'Total des événements d\'audit',
-            ['action', 'resource_type']
-        )
-        
-        # Métriques de sécurité
-        self.security_events_total = Counter(
-            'hellojade_security_events_total',
-            'Total des événements de sécurité',
-            ['type', 'severity']
-        )
-        
-        self.failed_login_attempts = Counter(
-            'hellojade_failed_login_attempts_total',
-            'Total des tentatives de connexion échouées',
-            ['ip_address']
-        )
-        
-        # Métriques de performance
-        self.cache_hits_total = Counter(
-            'hellojade_cache_hits_total',
-            'Total des hits de cache',
-            ['cache_type']
-        )
-        
-        self.cache_misses_total = Counter(
-            'hellojade_cache_misses_total',
-            'Total des misses de cache',
-            ['cache_type']
-        )
-        
-        # Thread pour la collecte des métriques système
-        self.monitoring_thread = None
-        self.stop_monitoring = False
-
-# Instance globale des métriques
-metrics = HelloJADEMetrics()
-
-def setup_monitoring(app):
-    """
-    Configure le monitoring pour l'application Flask
-    """
-    if not app.config.get('PROMETHEUS_ENABLED', True):
-        return
-    
-    # Route pour les métriques Prometheus
-    @app.route('/metrics')
-    def prometheus_metrics():
-        """Endpoint pour les métriques Prometheus"""
-        try:
-            return Response(
-                generate_latest(REGISTRY),
-                mimetype=CONTENT_TYPE_LATEST
-            )
-        except Exception as e:
-            logger.error(f"Erreur lors de la génération des métriques: {str(e)}")
-            return Response("Erreur interne", status=500)
-    
-    # Middleware pour collecter les métriques HTTP
+    # Middleware pour les métriques HTTP
     @app.before_request
     def before_request():
-        g.start_time = time.time()
+        request.start_time = time.time()
     
     @app.after_request
     def after_request(response):
-        if hasattr(g, 'start_time'):
-            duration = time.time() - g.start_time
+        if hasattr(request, 'start_time'):
+            duration = time.time() - request.start_time
             
-            # Métriques HTTP
-            metrics.http_requests_total.labels(
+            # Métriques de requête
+            REQUEST_COUNT.labels(
                 method=request.method,
                 endpoint=request.endpoint or 'unknown',
                 status=response.status_code
             ).inc()
             
-            metrics.http_request_duration_seconds.labels(
+            REQUEST_DURATION.labels(
                 method=request.method,
                 endpoint=request.endpoint or 'unknown'
             ).observe(duration)
+            
+            # Log de performance
+            if duration > 1.0:  # Requêtes lentes
+                logger.warning(
+                    "Requête lente détectée",
+                    method=request.method,
+                    endpoint=request.endpoint,
+                    duration=duration,
+                    status_code=response.status_code
+                )
         
         return response
     
-    # Démarrage du monitoring système
-    start_system_monitoring()
-    
-    logger.info("Monitoring Prometheus configuré")
-
-def start_system_monitoring():
-    """Démarre le monitoring système en arrière-plan"""
-    if metrics.monitoring_thread and metrics.monitoring_thread.is_alive():
-        return
-    
-    metrics.stop_monitoring = False
-    metrics.monitoring_thread = threading.Thread(
-        target=_system_monitoring_loop,
-        daemon=True
-    )
-    metrics.monitoring_thread.start()
-    logger.info("Monitoring système démarré")
-
-def stop_system_monitoring():
-    """Arrête le monitoring système"""
-    metrics.stop_monitoring = True
-    if metrics.monitoring_thread:
-        metrics.monitoring_thread.join(timeout=5)
-    logger.info("Monitoring système arrêté")
-
-def _system_monitoring_loop():
-    """Boucle de collecte des métriques système"""
-    while not metrics.stop_monitoring:
+    # Route pour les métriques Prometheus
+    @app.route('/metrics')
+    def metrics():
+        """Endpoint pour les métriques Prometheus"""
         try:
-            # Métriques CPU
-            cpu_percent = psutil.cpu_percent(interval=1)
-            metrics.system_cpu_usage.set(cpu_percent)
+            # Mise à jour des métriques système
+            update_system_metrics()
             
-            # Métriques mémoire
-            memory = psutil.virtual_memory()
-            metrics.system_memory_usage.set(memory.used)
-            
-            # Métriques disque
-            for partition in psutil.disk_partitions():
-                try:
-                    usage = psutil.disk_usage(partition.mountpoint)
-                    metrics.system_disk_usage.labels(
-                        mount_point=partition.mountpoint
-                    ).set(usage.used)
-                except PermissionError:
-                    continue
-            
-            # Métriques uptime
-            uptime = time.time() - psutil.boot_time()
-            metrics.system_uptime_seconds.set(uptime)
-            
-            # Pause entre les collectes
-            time.sleep(30)  # Collecte toutes les 30 secondes
-            
+            return Response(
+                generate_latest(REGISTRY),
+                mimetype=CONTENT_TYPE_LATEST
+            )
         except Exception as e:
-            logger.error(f"Erreur lors de la collecte des métriques système: {str(e)}")
-            time.sleep(60)  # Pause plus longue en cas d'erreur
+            logger.error(f"Erreur lors de la génération des métriques: {e}")
+            return jsonify({'error': 'Erreur métriques'}), 500
+    
+    logger.info("Système de monitoring initialisé")
 
-# Fonctions utilitaires pour les métriques
 
-def record_auth_attempt(status, method='ldap'):
-    """Enregistre une tentative d'authentification"""
-    metrics.auth_attempts_total.labels(status=status, method=method).inc()
+def update_system_metrics():
+    """Met à jour les métriques système"""
+    try:
+        # Métriques mémoire
+        memory = psutil.virtual_memory()
+        SYSTEM_MEMORY.set(memory.used)
+        
+        # Métriques CPU
+        cpu_percent = psutil.cpu_percent(interval=1)
+        SYSTEM_CPU.set(cpu_percent)
+        
+        # Métriques disque
+        disk = psutil.disk_usage('/')
+        SYSTEM_DISK.set(disk.percent)
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de la mise à jour des métriques système: {e}")
 
-def record_db_query(operation, duration):
-    """Enregistre une requête de base de données"""
-    metrics.db_query_duration_seconds.labels(operation=operation).observe(duration)
 
-def record_call(status, direction='outbound', call_type='scheduled'):
-    """Enregistre un appel téléphonique"""
-    metrics.calls_total.labels(status=status, direction=direction, type=call_type).inc()
+class HealthChecker:
+    """Vérificateur de santé des services"""
+    
+    def __init__(self, app):
+        self.app = app
+        self.logger = get_logger('health')
+    
+    def check_database(self) -> Dict[str, Any]:
+        """Vérifie la santé de la base de données"""
+        try:
+            start_time = time.time()
+            db.session.execute('SELECT 1 FROM DUAL')
+            duration = time.time() - start_time
+            
+            return {
+                'status': 'healthy',
+                'response_time': duration,
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+        except Exception as e:
+            self.logger.error(f"Erreur de santé base de données: {e}")
+            return {
+                'status': 'unhealthy',
+                'error': str(e),
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+    
+    def check_redis(self) -> Dict[str, Any]:
+        """Vérifie la santé de Redis"""
+        try:
+            import redis
+            r = redis.Redis.from_url(self.app.config['REDIS_URL'])
+            
+            start_time = time.time()
+            r.ping()
+            duration = time.time() - start_time
+            
+            return {
+                'status': 'healthy',
+                'response_time': duration,
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+        except Exception as e:
+            self.logger.error(f"Erreur de santé Redis: {e}")
+            return {
+                'status': 'unhealthy',
+                'error': str(e),
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+    
+    def check_ldap(self) -> Dict[str, Any]:
+        """Vérifie la santé du serveur LDAP"""
+        if not self.app.config.get('LDAP_ENABLED', True):
+            return {
+                'status': 'disabled',
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+        
+        try:
+            from core.auth import LDAPManager
+            ldap_manager = LDAPManager(self.app)
+            
+            start_time = time.time()
+            conn = ldap_manager.connect()
+            duration = time.time() - start_time
+            
+            if conn:
+                conn.unbind_s()
+                return {
+                    'status': 'healthy',
+                    'response_time': duration,
+                    'timestamp': datetime.now(timezone.utc).isoformat()
+                }
+            else:
+                return {
+                    'status': 'unhealthy',
+                    'error': 'Impossible de se connecter au serveur LDAP',
+                    'timestamp': datetime.now(timezone.utc).isoformat()
+                }
+        except Exception as e:
+            self.logger.error(f"Erreur de santé LDAP: {e}")
+            return {
+                'status': 'unhealthy',
+                'error': str(e),
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+    
+    def check_ai_services(self) -> Dict[str, Any]:
+        """Vérifie la santé des services IA"""
+        if not self.app.config.get('AI_ENABLED', True):
+            return {
+                'status': 'disabled',
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+        
+        services = {}
+        
+        # Vérification Ollama
+        try:
+            import requests
+            start_time = time.time()
+            response = requests.get(f"{self.app.config['OLLAMA_HOST']}/api/tags", timeout=5)
+            duration = time.time() - start_time
+            
+            if response.status_code == 200:
+                services['ollama'] = {
+                    'status': 'healthy',
+                    'response_time': duration
+                }
+            else:
+                services['ollama'] = {
+                    'status': 'unhealthy',
+                    'error': f"Status code: {response.status_code}"
+                }
+        except Exception as e:
+            services['ollama'] = {
+                'status': 'unhealthy',
+                'error': str(e)
+            }
+        
+        # Vérification Whisper
+        try:
+            import whisper
+            start_time = time.time()
+            model = whisper.load_model(self.app.config['WHISPER_MODEL'])
+            duration = time.time() - start_time
+            
+            services['whisper'] = {
+                'status': 'healthy',
+                'response_time': duration
+            }
+        except Exception as e:
+            services['whisper'] = {
+                'status': 'unhealthy',
+                'error': str(e)
+            }
+        
+        # Vérification Piper
+        try:
+            import piper
+            start_time = time.time()
+            model_path = self.app.config['PIPER_MODEL_PATH']
+            piper.PiperVoice.load(model_path)
+            duration = time.time() - start_time
+            
+            services['piper'] = {
+                'status': 'healthy',
+                'response_time': duration
+            }
+        except Exception as e:
+            services['piper'] = {
+                'status': 'unhealthy',
+                'error': str(e)
+            }
+        
+        return {
+            'status': 'healthy' if all(s['status'] == 'healthy' for s in services.values()) else 'degraded',
+            'services': services,
+            'timestamp': datetime.now(timezone.utc).isoformat()
+        }
+    
+    def check_telephony(self) -> Dict[str, Any]:
+        """Vérifie la santé des services téléphoniques"""
+        if not self.app.config.get('TELEPHONY_ENABLED', True):
+            return {
+                'status': 'disabled',
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+        
+        services = {}
+        
+        # Vérification Asterisk
+        try:
+            import pyst2
+            start_time = time.time()
+            manager = pyst2.Manager(
+                host=self.app.config['ASTERISK_HOST'],
+                port=self.app.config['ASTERISK_PORT'],
+                username=self.app.config['ASTERISK_USERNAME'],
+                secret=self.app.config['ASTERISK_PASSWORD']
+            )
+            manager.connect()
+            duration = time.time() - start_time
+            
+            services['asterisk'] = {
+                'status': 'healthy',
+                'response_time': duration
+            }
+            manager.close()
+        except Exception as e:
+            services['asterisk'] = {
+                'status': 'unhealthy',
+                'error': str(e)
+            }
+        
+        return {
+            'status': 'healthy' if all(s['status'] == 'healthy' for s in services.values()) else 'degraded',
+            'services': services,
+            'timestamp': datetime.now(timezone.utc).isoformat()
+        }
+    
+    def comprehensive_health_check(self) -> Dict[str, Any]:
+        """Vérification complète de la santé de l'application"""
+        checks = {
+            'database': self.check_database(),
+            'redis': self.check_redis(),
+            'ldap': self.check_ldap(),
+            'ai_services': self.check_ai_services(),
+            'telephony': self.check_telephony()
+        }
+        
+        # Statut global
+        all_healthy = all(
+            check['status'] in ['healthy', 'disabled'] 
+            for check in checks.values()
+        )
+        
+        overall_status = 'healthy' if all_healthy else 'unhealthy'
+        
+        return {
+            'status': overall_status,
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'version': self.app.config.get('VERSION', '1.0.0'),
+            'environment': self.app.config.get('ENVIRONMENT', 'production'),
+            'checks': checks
+        }
 
-def record_call_duration(status, duration):
-    """Enregistre la durée d'un appel"""
-    metrics.calls_duration_seconds.labels(status=status).observe(duration)
 
-def record_transcription(model, status, duration=None):
-    """Enregistre une transcription IA"""
-    metrics.ai_transcriptions_total.labels(model=model, status=status).inc()
-    if duration:
-        metrics.ai_transcription_duration_seconds.labels(model=model).observe(duration)
-
-def record_analysis(analysis_type, model, status, duration=None):
-    """Enregistre une analyse IA"""
-    metrics.ai_analyses_total.labels(type=analysis_type, model=model, status=status).inc()
-    if duration:
-        metrics.ai_analysis_duration_seconds.labels(type=analysis_type, model=model).observe(duration)
-
-def record_security_event(event_type, severity='medium'):
-    """Enregistre un événement de sécurité"""
-    metrics.security_events_total.labels(type=event_type, severity=severity).inc()
-
-def record_failed_login(ip_address):
-    """Enregistre une tentative de connexion échouée"""
-    metrics.failed_login_attempts.labels(ip_address=ip_address).inc()
-
-def record_audit_event(action, resource_type):
-    """Enregistre un événement d'audit"""
-    metrics.audit_events_total.labels(action=action, resource_type=resource_type).inc()
-
-def record_medical_record(record_type, severity='low'):
-    """Enregistre un dossier médical"""
-    metrics.medical_records_total.labels(type=record_type, severity=severity).inc()
-
-def update_patient_count(status, count):
-    """Met à jour le nombre de patients"""
-    metrics.patients_total.labels(status=status).set(count)
-
-def update_active_sessions(count):
-    """Met à jour le nombre de sessions actives"""
-    metrics.active_sessions.set(count)
-
-def update_active_calls(count):
-    """Met à jour le nombre d'appels actifs"""
-    metrics.calls_active.set(count)
-
-def update_db_connections(count):
-    """Met à jour le nombre de connexions actives à la base de données"""
-    metrics.db_connections_active.set(count)
-
-def record_cache_hit(cache_type):
-    """Enregistre un hit de cache"""
-    metrics.cache_hits_total.labels(cache_type=cache_type).inc()
-
-def record_cache_miss(cache_type):
-    """Enregistre un miss de cache"""
-    metrics.cache_misses_total.labels(cache_type=cache_type).inc()
-
-# Décorateurs pour automatiser la collecte de métriques
-
-def monitor_function(metric_name, labels=None):
-    """Décorateur pour monitorer une fonction"""
+# Décorateurs pour les métriques
+def track_ai_operation(operation_type: str, model: str = 'unknown'):
+    """Décorateur pour tracker les opérations IA"""
     def decorator(func):
+        @wraps(func)
         def wrapper(*args, **kwargs):
             start_time = time.time()
             try:
                 result = func(*args, **kwargs)
                 duration = time.time() - start_time
                 
-                # Enregistrement de la métrique
-                if hasattr(metrics, metric_name):
-                    metric = getattr(metrics, metric_name)
-                    if labels:
-                        metric.labels(**labels).observe(duration)
-                    else:
-                        metric.observe(duration)
+                # Métriques de succès
+                AI_SUCCESS_RATE.labels(type=operation_type, status='success').inc()
+                AI_PROCESSING_TIME.labels(type=operation_type, model=model).observe(duration)
                 
                 return result
             except Exception as e:
                 duration = time.time() - start_time
-                logger.error(f"Erreur dans {func.__name__}: {str(e)}")
+                
+                # Métriques d'erreur
+                AI_SUCCESS_RATE.labels(type=operation_type, status='error').inc()
+                AI_PROCESSING_TIME.labels(type=operation_type, model=model).observe(duration)
+                
+                # Log de l'erreur
+                logger.error(
+                    f"Erreur opération IA {operation_type}",
+                    operation_type=operation_type,
+                    model=model,
+                    duration=duration,
+                    error=str(e)
+                )
+                
                 raise
         return wrapper
     return decorator
 
-def monitor_db_operation(operation):
-    """Décorateur pour monitorer les opérations de base de données"""
-    return monitor_function('db_query_duration_seconds', {'operation': operation})
 
-def monitor_ai_operation(operation_type, model):
-    """Décorateur pour monitorer les opérations IA"""
-    if operation_type == 'transcription':
-        return monitor_function('ai_transcription_duration_seconds', {'model': model})
-    elif operation_type == 'analysis':
-        return monitor_function('ai_analysis_duration_seconds', {'type': 'general', 'model': model})
-    else:
-        return monitor_function('ai_analysis_duration_seconds', {'type': operation_type, 'model': model})
-
-# Fonctions de diagnostic
-
-def get_system_health():
-    """Retourne l'état de santé du système"""
-    try:
-        health = {
-            'timestamp': datetime.now(timezone.utc).isoformat(),
-            'cpu_usage': psutil.cpu_percent(),
-            'memory_usage': psutil.virtual_memory().percent,
-            'disk_usage': {},
-            'uptime': time.time() - psutil.boot_time(),
-            'status': 'healthy'
-        }
-        
-        # Vérification disque
-        for partition in psutil.disk_partitions():
+def track_call_operation(call_type: str = 'unknown'):
+    """Décorateur pour tracker les opérations d'appel"""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
             try:
-                usage = psutil.disk_usage(partition.mountpoint)
-                health['disk_usage'][partition.mountpoint] = {
-                    'used_percent': usage.percent,
-                    'free_gb': usage.free / (1024**3)
-                }
-                
-                if usage.percent > 90:
-                    health['status'] = 'warning'
-            except PermissionError:
-                continue
-        
-        # Vérification CPU et mémoire
-        if health['cpu_usage'] > 80 or health['memory_usage'] > 80:
-            health['status'] = 'warning'
-        
-        return health
-        
-    except Exception as e:
-        logger.error(f"Erreur lors de la vérification de santé: {str(e)}")
-        return {
-            'timestamp': datetime.now(timezone.utc).isoformat(),
-            'status': 'error',
-            'error': str(e)
-        }
+                result = func(*args, **kwargs)
+                CALL_COUNT.labels(status='success', type=call_type).inc()
+                return result
+            except Exception as e:
+                CALL_COUNT.labels(status='error', type=call_type).inc()
+                ERROR_COUNT.labels(type='call', module='telephony').inc()
+                raise
+        return wrapper
+    return decorator
 
-def get_metrics_summary():
-    """Retourne un résumé des métriques principales"""
-    try:
-        summary = {
-            'timestamp': datetime.now(timezone.utc).isoformat(),
-            'http_requests': {
-                'total': metrics.http_requests_total._value.sum(),
-                'rate_1m': 0  # À calculer si nécessaire
-            },
-            'calls': {
-                'total': metrics.calls_total._value.sum(),
-                'active': metrics.calls_active._value.sum()
-            },
-            'ai_operations': {
-                'transcriptions': metrics.ai_transcriptions_total._value.sum(),
-                'analyses': metrics.ai_analyses_total._value.sum()
-            },
-            'system': {
-                'cpu_usage': psutil.cpu_percent(),
-                'memory_usage': psutil.virtual_memory().percent,
-                'uptime': time.time() - psutil.boot_time()
-            }
-        }
-        
-        return summary
-        
-    except Exception as e:
-        logger.error(f"Erreur lors de la génération du résumé: {str(e)}")
-        return {
-            'timestamp': datetime.now(timezone.utc).isoformat(),
-            'error': str(e)
-        } 
+
+def track_database_operation(operation_type: str = 'unknown'):
+    """Décorateur pour tracker les opérations de base de données"""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            start_time = time.time()
+            try:
+                result = func(*args, **kwargs)
+                duration = time.time() - start_time
+                
+                # Log des requêtes lentes
+                if duration > 1.0:
+                    logger.warning(
+                        f"Requête lente détectée: {operation_type}",
+                        operation_type=operation_type,
+                        duration=duration
+                    )
+                
+                return result
+            except Exception as e:
+                duration = time.time() - start_time
+                ERROR_COUNT.labels(type='database', module=operation_type).inc()
+                
+                logger.error(
+                    f"Erreur base de données: {operation_type}",
+                    operation_type=operation_type,
+                    duration=duration,
+                    error=str(e)
+                )
+                raise
+        return wrapper
+    return decorator
+
+
+# Fonctions utilitaires
+def increment_error_counter(error_type: str, module: str):
+    """Incrémente le compteur d'erreurs"""
+    ERROR_COUNT.labels(type=error_type, module=module).inc()
+
+
+def update_active_users(count: int):
+    """Met à jour le nombre d'utilisateurs actifs"""
+    ACTIVE_USERS.set(count)
+
+
+def update_database_connections(count: int):
+    """Met à jour le nombre de connexions à la base de données"""
+    DATABASE_CONNECTIONS.set(count)
+
+
+def get_metrics_summary() -> Dict[str, Any]:
+    """Récupère un résumé des métriques"""
+    return {
+        'request_count': REQUEST_COUNT._value.sum(),
+        'active_users': ACTIVE_USERS._value.get(),
+        'database_connections': DATABASE_CONNECTIONS._value.get(),
+        'call_count': CALL_COUNT._value.sum(),
+        'error_count': ERROR_COUNT._value.sum(),
+        'system_memory': SYSTEM_MEMORY._value.get(),
+        'system_cpu': SYSTEM_CPU._value.get(),
+        'system_disk': SYSTEM_DISK._value.get()
+    } 
