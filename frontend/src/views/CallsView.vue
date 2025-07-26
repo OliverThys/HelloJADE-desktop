@@ -380,6 +380,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { apiClient } from '@/utils/api'
 import {
   MagnifyingGlassIcon,
   ArrowDownTrayIcon,
@@ -441,59 +442,7 @@ const columns = [
 ]
 
 // Données des appels
-const calls = ref([
-  {
-    id: 1,
-    patient_number: '127',
-    patient_last_name: 'Dupont',
-    patient_first_name: 'Jean',
-    birth_date: '1985-03-15',
-    phone: '+32 470 12 34 56',
-    hospital_site: 'CHU Liège',
-    discharge_date: '2024-01-15',
-    scheduled_call: '2024-01-18T14:30:00',
-    status: 'called',
-    doctor: 'Dr. Martin',
-    service: 'Cardiologie',
-    actual_call: '2024-01-18T14:32:00',
-    duration: 4.2,
-    score: 8.5
-  },
-  {
-    id: 2,
-    patient_number: '128',
-    patient_last_name: 'Martin',
-    patient_first_name: 'Marie',
-    birth_date: '1972-07-22',
-    phone: '+32 470 98 76 54',
-    hospital_site: 'CHU Bruxelles',
-    discharge_date: '2024-01-16',
-    scheduled_call: '2024-01-19T10:00:00',
-    status: 'pending',
-    doctor: 'Dr. Dubois',
-    service: 'Orthopédie',
-    actual_call: null,
-    duration: null,
-    score: null
-  },
-  {
-    id: 3,
-    patient_number: '129',
-    patient_last_name: 'Bernard',
-    patient_first_name: 'Pierre',
-    birth_date: '1958-11-08',
-    phone: '+32 470 55 66 77',
-    hospital_site: 'CHU Namur',
-    discharge_date: '2024-01-14',
-    scheduled_call: '2024-01-17T16:00:00',
-    status: 'failed',
-    doctor: 'Dr. Lambert',
-    service: 'Gériatrie',
-    actual_call: null,
-    duration: null,
-    score: null
-  }
-])
+const calls = ref([])
 
 // Recherche avec debounce
 let searchTimeout: NodeJS.Timeout
@@ -509,12 +458,20 @@ const loadCalls = async () => {
   try {
     isLoading.value = true
     
-    // Simuler un appel API
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    const params = {
+      page: pagination.page,
+      per_page: pagination.per_page,
+      search: filters.search,
+      status: filters.status
+    }
     
-    // Mise à jour de la pagination
-    pagination.total = calls.value.length
-    pagination.pages = Math.ceil(pagination.total / pagination.per_page)
+    const response = await apiClient.calls.getCalls(params)
+    
+    if (response.data.success) {
+      calls.value = response.data.data.items
+      pagination.total = response.data.data.total
+      pagination.pages = response.data.data.pages
+    }
     
   } catch (error) {
     console.error('Erreur lors du chargement des appels:', error)
