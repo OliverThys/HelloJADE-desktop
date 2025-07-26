@@ -1,0 +1,116 @@
+# HelloJADE v1.0 - Configuration Base de Données Oracle
+# Configuration pour connexion à distance (simulation environnement hospitalier)
+
+# Configuration du serveur Oracle hospitalier
+oracle:
+  # Informations de connexion au serveur
+  host: "192.168.1.100"          # IP du serveur Oracle (simulation hôpital)
+  port: 1521                     # Port Oracle standard
+  service: "XE"                  # Service Oracle
+  user: "hellojade"              # Utilisateur HelloJADE
+  password: "hellojade123"       # Mot de passe (à changer en production)
+  
+  # Configuration de la connexion
+  connection:
+    pool_size: 10                # Taille du pool de connexions
+    max_overflow: 20             # Connexions supplémentaires autorisées
+    pool_timeout: 30             # Timeout d'attente de connexion (secondes)
+    pool_recycle: 3600           # Recyclage des connexions (secondes)
+    
+  # Configuration de sécurité
+  security:
+    ssl_enabled: true            # Connexion SSL/TLS
+    ssl_verify: false            # Vérification SSL (false pour développement)
+    encryption: "REQUIRED"       # Chiffrement des données
+    integrity: "REQUIRED"        # Intégrité des données
+    
+  # Configuration des logs
+  logging:
+    level: "INFO"                # Niveau de log (DEBUG, INFO, WARNING, ERROR)
+    audit_enabled: true          # Logs d'audit activés
+    slow_query_threshold: 5.0    # Seuil pour les requêtes lentes (secondes)
+    
+  # Configuration des performances
+  performance:
+    fetch_size: 1000             # Taille de récupération par défaut
+    auto_commit: false           # Auto-commit désactivé
+    timeout: 30                  # Timeout des requêtes (secondes)
+    
+  # Configuration de la réplication (pour production)
+  replication:
+    enabled: false               # Réplication désactivée en développement
+    read_only_slaves: []         # Serveurs en lecture seule
+    
+# Configuration pour différents environnements
+environments:
+  development:
+    oracle:
+      host: "192.168.1.100"
+      port: 1521
+      service: "XE"
+      user: "hellojade"
+      password: "hellojade123"
+      logging:
+        level: "DEBUG"
+        
+  testing:
+    oracle:
+      host: "192.168.1.100"
+      port: 1521
+      service: "XE"
+      user: "hellojade_test"
+      password: "test123"
+      logging:
+        level: "INFO"
+        
+  production:
+    oracle:
+      host: "${ORACLE_HOST}"     # Variable d'environnement
+      port: "${ORACLE_PORT}"     # Variable d'environnement
+      service: "${ORACLE_SERVICE}" # Variable d'environnement
+      user: "${ORACLE_USER}"     # Variable d'environnement
+      password: "${ORACLE_PASSWORD}" # Variable d'environnement
+      security:
+        ssl_verify: true         # Vérification SSL en production
+      logging:
+        level: "WARNING"
+      replication:
+        enabled: true            # Réplication en production
+
+# Configuration des requêtes prédéfinies
+queries:
+  patients:
+    get_all: "SELECT * FROM patients WHERE is_active = 1 ORDER BY last_name, first_name"
+    get_by_id: "SELECT * FROM patients WHERE id = :id AND is_active = 1"
+    get_by_phone: "SELECT * FROM patients WHERE phone_number = :phone AND is_active = 1"
+    count_active: "SELECT COUNT(*) FROM patients WHERE is_active = 1"
+    
+  calls:
+    get_recent: "SELECT * FROM calls ORDER BY created_at DESC LIMIT :limit"
+    get_by_patient: "SELECT * FROM calls WHERE patient_id = :patient_id ORDER BY scheduled_time DESC"
+    get_scheduled: "SELECT * FROM calls WHERE status = 'scheduled' AND scheduled_time >= SYSDATE ORDER BY scheduled_time"
+    count_completed: "SELECT COUNT(*) FROM calls WHERE status = 'completed'"
+    
+  users:
+    get_by_role: "SELECT * FROM users WHERE role = :role AND is_active = 1"
+    get_doctors: "SELECT * FROM users WHERE role = 'medecin' AND is_active = 1"
+    get_nurses: "SELECT * FROM users WHERE role = 'infirmier' AND is_active = 1"
+    
+  medical_records:
+    get_by_patient: "SELECT * FROM medical_records WHERE patient_id = :patient_id ORDER BY created_at DESC"
+    get_recent: "SELECT * FROM medical_records ORDER BY created_at DESC LIMIT :limit"
+
+# Configuration des migrations
+migrations:
+  enabled: true
+  directory: "migrations"
+  table_name: "schema_migrations"
+  version_format: "YYYYMMDDHHMMSS"
+
+# Configuration de sauvegarde
+backup:
+  enabled: true
+  schedule: "0 2 * * *"          # Tous les jours à 2h du matin
+  retention_days: 30             # Garder 30 jours de sauvegardes
+  directory: "backups"
+  compression: true              # Compression des sauvegardes 
