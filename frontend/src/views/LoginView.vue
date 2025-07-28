@@ -11,7 +11,7 @@
           </div>
         </div>
         <h2 class="mt-6 text-3xl font-bold text-gray-900">
-          HelloJADE Manager
+          HelloJADE
         </h2>
         <p class="mt-2 text-sm text-gray-600">
           Connectez-vous à votre compte

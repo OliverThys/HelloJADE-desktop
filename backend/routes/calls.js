@@ -6,6 +6,8 @@ const router = express.Router()
 // Récupérer tous les appels (patients hospitalisés)
 router.get('/', async (req, res) => {
   try {
+    console.log('📞 API /calls appelée avec les paramètres:', req.query)
+    
     const { page = 1, per_page = 10, search = '', status = '' } = req.query
     
     // Requête SQL pour récupérer les patients hospitalisés
@@ -35,17 +37,26 @@ router.get('/', async (req, res) => {
       ORDER BY h.DATE_SORTIE DESC
     `
     
+    console.log('🔍 Exécution de la requête SQL...')
+    console.log('📝 SQL:', sql)
+    
     const binds = []
     if (search) binds.push(search)
     if (status) binds.push(status)
     
+    console.log('🔗 Binds:', binds)
+    
     const patients = await executeQuery(sql, binds)
+    
+    console.log(`✅ ${patients.length} patients récupérés de la base de données`)
     
     // Pagination
     const total = patients.length
     const startIndex = (page - 1) * per_page
     const endIndex = startIndex + parseInt(per_page)
     const paginatedPatients = patients.slice(startIndex, endIndex)
+    
+    console.log(`📊 Pagination: ${paginatedPatients.length} patients sur ${total} total`)
     
     // Transformer les données pour correspondre au format attendu par le frontend
     const transformedPatients = paginatedPatients.map(patient => ({
@@ -66,6 +77,9 @@ router.get('/', async (req, res) => {
       score: patient.SCORE
     }))
     
+    console.log('📤 Envoi de la réponse au frontend...')
+    console.log('📋 Premier patient transformé:', transformedPatients[0])
+    
     res.json({
       success: true,
       data: {
@@ -78,11 +92,15 @@ router.get('/', async (req, res) => {
     })
     
   } catch (error) {
-    console.error('Erreur lors de la récupération des appels:', error)
+    console.error('❌ Erreur lors de la récupération des appels:', error)
+    console.error('🔍 Stack trace:', error.stack)
+    
+    // Réponse d'erreur plus détaillée
     res.status(500).json({
       success: false,
       message: 'Erreur lors de la récupération des appels',
-      error: error.message
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     })
   }
 })

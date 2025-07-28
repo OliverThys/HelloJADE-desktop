@@ -9,19 +9,9 @@ const dbConfig = {
   poolMin: 2,
   poolMax: 10,
   poolIncrement: 1,
-  charset: 'AL32UTF8',
-  // Augmenter les timeouts
-  poolTimeout: 60,
-  queueTimeout: 60000,
-  // Timeouts de connexion
-  connectTimeout: 60000,
-  transportConnectTimeout: 60000,
-  // Configuration de connexion
-  events: false,
-  externalAuth: false
+  charset: 'AL32UTF8'
 }
 
-// Log de la configuration (sans le mot de passe)
 console.log('🔧 Configuration Oracle:', {
   host: process.env.ORACLE_HOST,
   port: process.env.ORACLE_PORT,
@@ -34,29 +24,11 @@ console.log('🔧 Configuration Oracle:', {
 async function initialize() {
   try {
     console.log('🔄 Tentative de connexion à Oracle...')
-    
-    // Vérifier si un pool existe déjà de manière sécurisée
-    try {
-      const existingPool = oracledb.getPool()
-      if (existingPool) {
-        console.log('⚠️ Pool existant détecté, fermeture...')
-        await existingPool.close(10)
-      }
-    } catch (poolError) {
-      // Si getPool() échoue, c'est normal - aucun pool n'existe
-      console.log('ℹ️ Aucun pool existant détecté')
-    }
-    
     await oracledb.createPool(dbConfig)
     console.log('✅ Pool de connexion Oracle créé avec succès')
     console.log(`📊 Connecté à ${process.env.ORACLE_HOST}:${process.env.ORACLE_PORT}/${process.env.ORACLE_SERVICE}`)
   } catch (err) {
     console.error('❌ Erreur lors de la création du pool Oracle:', err)
-    console.error('🔍 Vérifiez que:')
-    console.error('   - La VM Windows Server est accessible sur 192.168.1.100')
-    console.error('   - Oracle Database 21c XE est démarré')
-    console.error('   - Le port 1521 est ouvert')
-    console.error('   - L\'utilisateur hellojade existe')
     throw err
   }
 }
@@ -64,9 +36,7 @@ async function initialize() {
 // Obtenir une connexion du pool
 async function getConnection() {
   try {
-    console.log('🔗 Obtention d\'une connexion du pool...')
     const connection = await oracledb.getConnection()
-    console.log('✅ Connexion obtenue avec succès')
     return connection
   } catch (err) {
     console.error('❌ Erreur lors de l\'obtention d\'une connexion:', err)
