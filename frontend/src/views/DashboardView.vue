@@ -1,170 +1,191 @@
 <template>
-  <div class="space-y-6">
-    <!-- En-tête -->
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-bold text-gray-900">Tableau de bord</h1>
-        <p class="text-gray-600">Vue d'ensemble de vos appels post-hospitalisation</p>
-      </div>
-      
-      <!-- Filtres de période -->
-      <div class="flex items-center space-x-4">
-        <div class="flex items-center space-x-2">
-          <label class="text-sm font-medium text-gray-700">Période :</label>
-          <select
-            v-model="selectedPeriod"
-            @change="loadDashboardData"
-            class="input-field w-40"
-          >
-            <option value="today">Aujourd'hui</option>
-            <option value="week">Cette semaine</option>
-            <option value="month">Ce mois</option>
-            <option value="quarter">Ce trimestre</option>
-            <option value="year">Cette année</option>
-            <option value="custom">Personnalisé</option>
-          </select>
+  <div class="dashboard-container">
+    <!-- En-tête du tableau de bord -->
+    <div class="mb-8">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="title-light mb-2">
+            Tableau de bord
+          </h1>
+          <p class="subtitle-light">
+            Vue d'ensemble de l'activité HelloJADE
+          </p>
         </div>
         
-        <!-- Période personnalisée -->
-        <div v-if="selectedPeriod === 'custom'" class="flex items-center space-x-2">
-          <input
-            v-model="customDateFrom"
-            type="date"
-            class="input-field w-40"
-          />
-          <span class="text-gray-500">à</span>
-          <input
-            v-model="customDateTo"
-            type="date"
-            class="input-field w-40"
-          />
+        <div class="flex items-center space-x-4">
+          <!-- Dernière mise à jour -->
+          <div class="text-sm text-light-secondary">
+            Dernière mise à jour : {{ dashboardStore.formatLastUpdate() }}
+          </div>
+          
+          <!-- Bouton de rafraîchissement -->
           <button
-            @click="loadDashboardData"
-            class="btn-primary"
+            @click="refreshData"
+            :disabled="dashboardStore.isLoading"
+            class="btn-action-light"
           >
-            Appliquer
+            <ArrowPathIcon 
+              :class="[
+                'w-4 h-4 mr-2',
+                dashboardStore.isLoading ? 'animate-spin' : ''
+              ]" 
+            />
+            Actualiser
           </button>
         </div>
       </div>
     </div>
 
-    <!-- KPIs -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
-      <div
-        v-for="kpi in kpis"
-        :key="kpi.id"
-        class="kpi-card"
+    <!-- Cartes de statistiques principales -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <StatCard
+        title="Patients actifs"
+        :value="dashboardStore.activePatients"
+        unit="patients"
+        description="Patients suivis actuellement"
+        :icon="UsersIcon"
+        variant="primary"
+        :trend="12"
+        badge="+5%"
       >
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="kpi-label">{{ kpi.label }}</p>
-            <p class="kpi-value">{{ kpi.value }}</p>
-          </div>
-          <div class="flex-shrink-0">
-            <component
-              :is="kpi.icon"
-              :class="kpi.iconColor"
-              class="h-8 w-8"
-            />
-          </div>
+        <template #actions>
+          <router-link
+            to="/patients"
+            class="link-light"
+          >
+            Voir tous →
+          </router-link>
+        </template>
+      </StatCard>
+
+      <StatCard
+        title="Hospitalisations en cours"
+        :value="dashboardStore.currentHospitalizations"
+        unit="patients"
+        description="Patients actuellement hospitalisés"
+        :icon="BuildingOfficeIcon"
+        variant="warning"
+        :trend="-3"
+        badge="3"
+      >
+        <template #actions>
+          <router-link
+            to="/patients"
+            class="link-light"
+          >
+            Voir détails →
+          </router-link>
+        </template>
+      </StatCard>
+
+      <StatCard
+        title="Consultations du jour"
+        :value="dashboardStore.todayConsultations"
+        unit="consultations"
+        description="Consultations programmées aujourd'hui"
+        :icon="CalendarIcon"
+        variant="success"
+        :trend="8"
+        badge="Aujourd'hui"
+      >
+        <template #actions>
+          <router-link
+            to="/patients"
+            class="link-light"
+          >
+            Voir planning →
+          </router-link>
+        </template>
+      </StatCard>
+
+      <StatCard
+        title="Analyses urgentes"
+        :value="dashboardStore.urgentAnalyses"
+        unit="analyses"
+        description="Analyses IA nécessitant attention"
+        :icon="ExclamationTriangleIcon"
+        variant="danger"
+        :trend="15"
+        badge="Urgent"
+      >
+        <template #actions>
+          <router-link
+            to="/ai"
+            class="link-light"
+          >
+            Voir alertes →
+          </router-link>
+        </template>
+      </StatCard>
+    </div>
+
+    <!-- Graphiques et analyses -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <!-- Évolution des hospitalisations -->
+      <div class="chart-container-light lg:col-span-2">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="chart-title-light">Évolution des hospitalisations</h3>
+          <span class="text-sm text-light-muted">7 derniers jours</span>
         </div>
         
-        <!-- Variation -->
-        <div v-if="kpi.change !== undefined" class="mt-2">
-          <span
-            :class="[
-              'kpi-change',
-              kpi.change >= 0 ? 'kpi-change-positive' : 'kpi-change-negative'
-            ]"
-          >
-            <ArrowUpIcon v-if="kpi.change >= 0" class="inline h-4 w-4" />
-            <ArrowDownIcon v-else class="inline h-4 w-4" />
-            {{ Math.abs(kpi.change) }}%
-          </span>
-          <span class="text-xs text-gray-500 ml-1">vs période précédente</span>
+        <div class="h-64 flex items-center justify-center">
+          <div class="text-center">
+            <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center">
+              <ChartBarIcon class="w-8 h-8 text-white" />
+            </div>
+            <p class="text-light-muted mb-2">Graphique en cours de développement</p>
+            <p class="text-sm text-light-muted">Données : {{ dashboardStore.currentHospitalizations }} admissions</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Répartition par service -->
+      <div class="chart-container-light">
+        <h3 class="chart-title-light mb-6">Répartition par service</h3>
+        
+        <div class="h-64 flex items-center justify-center">
+          <div class="text-center">
+            <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
+              <ChartPieIcon class="w-8 h-8 text-white" />
+            </div>
+            <p class="text-light-muted">Graphique en cours de développement</p>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Graphiques -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Graphique des appels -->
-      <div class="card">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">Évolution des appels</h3>
-          <select
-            v-model="chartType"
-            @change="loadChartData"
-            class="input-field w-32"
-          >
-            <option value="daily">Quotidien</option>
-            <option value="weekly">Hebdomadaire</option>
-            <option value="monthly">Mensuel</option>
-          </select>
+    <!-- Activité récente et alertes -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Activité récente -->
+      <div class="chart-container-light lg:col-span-2">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="chart-title-light">Activité récente</h3>
+          <router-link to="/calls" class="link-light">
+            Voir tout →
+          </router-link>
         </div>
-        <div class="h-64">
-          <canvas ref="callsChart"></canvas>
+        
+        <div class="h-64 flex items-center justify-center">
+          <div class="text-center">
+            <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center">
+              <ClockIcon class="w-8 h-8 text-white" />
+            </div>
+            <p class="text-light-muted">Aucune activité récente</p>
+          </div>
         </div>
       </div>
 
-      <!-- Graphique de répartition -->
-      <div class="card">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">Répartition par statut</h3>
-        </div>
-        <div class="h-64">
-          <canvas ref="statusChart"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <!-- Alertes récentes -->
-    <div class="card">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-semibold text-gray-900">Alertes récentes</h3>
-        <router-link
-          to="/calls"
-          class="text-sm font-medium text-green-600 hover:text-green-500"
-        >
-          Voir tous les appels →
-        </router-link>
-      </div>
-      
-      <div v-if="recentAlerts.length === 0" class="text-center py-8">
-        <ExclamationTriangleIcon class="mx-auto h-12 w-12 text-gray-400" />
-        <h3 class="mt-2 text-sm font-medium text-gray-900">Aucune alerte</h3>
-        <p class="mt-1 text-sm text-gray-500">
-          Aucune alerte n'a été détectée récemment.
-        </p>
-      </div>
-      
-      <div v-else class="space-y-3">
-        <div
-          v-for="alert in recentAlerts"
-          :key="alert.id"
-          class="flex items-center p-4 bg-red-50 rounded-lg border border-red-200"
-        >
-          <div class="flex-shrink-0">
-            <ExclamationTriangleIcon class="h-5 w-5 text-red-400" />
-          </div>
-          <div class="ml-3 flex-1">
-            <p class="text-sm font-medium text-red-800">
-              {{ alert.title }}
-            </p>
-            <p class="text-sm text-red-700">
-              {{ alert.message }}
-            </p>
-            <p class="text-xs text-red-600 mt-1">
-              {{ formatDate(alert.created_at) }}
-            </p>
-          </div>
-          <div class="flex-shrink-0">
-            <button
-              @click="viewCall(alert.call_id)"
-              class="text-sm font-medium text-red-600 hover:text-red-500"
-            >
-              Voir l'appel
-            </button>
+      <!-- Alertes -->
+      <div class="chart-container-light">
+        <h3 class="chart-title-light mb-6">Alertes</h3>
+        
+        <div class="h-64 flex items-center justify-center">
+          <div class="text-center">
+            <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center">
+              <CheckIcon class="w-8 h-8 text-white" />
+            </div>
+            <p class="text-light-muted">Aucune alerte</p>
+            <p class="text-sm text-light-muted">Tout fonctionne correctement</p>
           </div>
         </div>
       </div>
@@ -173,289 +194,130 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, computed } from 'vue'
+import { useDashboardStore } from '@/stores/dashboard'
+import { usePatientsStore } from '@/stores/patients'
+import StatCard from '@/components/common/StatCard.vue'
 import {
-  PhoneIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ClockIcon,
-  ChartBarIcon,
+  UsersIcon,
+  BuildingOfficeIcon,
+  CalendarIcon,
   ExclamationTriangleIcon,
-  ArrowUpIcon,
-  ArrowDownIcon
+  ArrowPathIcon,
+  CheckCircleIcon,
+  ChartBarIcon,
+  ChartPieIcon,
+  ClockIcon,
+  CheckIcon
 } from '@heroicons/vue/24/outline'
-import { Chart, registerables } from 'chart.js'
-import { useToast } from 'vue-toastification'
+import { formatDate, getStatusColor } from '@/utils/api'
 
-// Enregistrer les composants Chart.js
-Chart.register(...registerables)
+// Stores
+const dashboardStore = useDashboardStore()
+const patientsStore = usePatientsStore()
 
-const router = useRouter()
-const toast = useToast()
-
-// Références des graphiques
-const callsChart = ref<HTMLCanvasElement>()
-const statusChart = ref<HTMLCanvasElement>()
-
-// État des données
-const selectedPeriod = ref('week')
-const customDateFrom = ref('')
-const customDateTo = ref('')
-const chartType = ref('daily')
-const isLoading = ref(false)
-
-// KPIs
-const kpis = ref([
-  {
-    id: 1,
-    label: 'Appels prévus',
-    value: '0',
-    icon: PhoneIcon,
-    iconColor: 'text-blue-500',
-    change: 0
-  },
-  {
-    id: 2,
-    label: 'Appels réalisés',
-    value: '0',
-    icon: CheckCircleIcon,
-    iconColor: 'text-green-500',
-    change: 0
-  },
-  {
-    id: 3,
-    label: 'Appels réussis',
-    value: '0',
-    icon: CheckCircleIcon,
-    iconColor: 'text-green-600',
-    change: 0
-  },
-  {
-    id: 4,
-    label: 'Appels en échec',
-    value: '0',
-    icon: XCircleIcon,
-    iconColor: 'text-red-500',
-    change: 0
-  },
-  {
-    id: 5,
-    label: 'Taux de réussite',
-    value: '0%',
-    icon: ChartBarIcon,
-    iconColor: 'text-purple-500',
-    change: 0
-  },
-  {
-    id: 6,
-    label: 'Durée moyenne',
-    value: '0 min',
-    icon: ClockIcon,
-    iconColor: 'text-orange-500',
-    change: 0
+// Computed
+const recentActivity = computed(() => {
+  const activity = dashboardStore.recentActivity
+  if (Array.isArray(activity)) {
+    return activity.slice(0, 8)
   }
-])
-
-// Alertes récentes
-const recentAlerts = ref([
-  {
-    id: 1,
-    title: 'Douleur élevée détectée',
-    message: 'Patient #127 - Douleur évaluée à 8/10',
-    created_at: new Date(),
-    call_id: 127
-  },
-  {
-    id: 2,
-    title: 'Appel en échec',
-    message: 'Patient #89 - 3 tentatives sans réponse',
-    created_at: new Date(Date.now() - 3600000),
-    call_id: 89
-  }
-])
-
-// Instances des graphiques
-let callsChartInstance: Chart | null = null
-let statusChartInstance: Chart | null = null
-
-// Charger les données du tableau de bord
-const loadDashboardData = async () => {
-  try {
-    isLoading.value = true
-    
-    // Simuler un appel API
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // Données simulées
-    kpis.value = [
-      {
-        id: 1,
-        label: 'Appels prévus',
-        value: '156',
-        icon: PhoneIcon,
-        iconColor: 'text-blue-500',
-        change: 12
-      },
-      {
-        id: 2,
-        label: 'Appels réalisés',
-        value: '142',
-        icon: CheckCircleIcon,
-        iconColor: 'text-green-500',
-        change: 8
-      },
-      {
-        id: 3,
-        label: 'Appels réussis',
-        value: '134',
-        icon: CheckCircleIcon,
-        iconColor: 'text-green-600',
-        change: 15
-      },
-      {
-        id: 4,
-        label: 'Appels en échec',
-        value: '8',
-        icon: XCircleIcon,
-        iconColor: 'text-red-500',
-        change: -25
-      },
-      {
-        id: 5,
-        label: 'Taux de réussite',
-        value: '94.4%',
-        icon: ChartBarIcon,
-        iconColor: 'text-purple-500',
-        change: 6
-      },
-      {
-        id: 6,
-        label: 'Durée moyenne',
-        value: '4.2 min',
-        icon: ClockIcon,
-        iconColor: 'text-orange-500',
-        change: -3
-      }
-    ]
-    
-    await loadChartData()
-    
-  } catch (error) {
-    console.error('Erreur lors du chargement des données:', error)
-    toast.error('Erreur lors du chargement des données')
-  } finally {
-    isLoading.value = false
-  }
-}
-
-// Charger les données des graphiques
-const loadChartData = async () => {
-  try {
-    // Données simulées pour le graphique des appels
-    const callsData = {
-      labels: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'],
-      datasets: [
-        {
-          label: 'Appels réalisés',
-          data: [12, 19, 15, 22, 18, 8, 14],
-          borderColor: '#10B981',
-          backgroundColor: 'rgba(16, 185, 129, 0.1)',
-          tension: 0.4
-        },
-        {
-          label: 'Appels réussis',
-          data: [11, 17, 14, 20, 17, 7, 13],
-          borderColor: '#059669',
-          backgroundColor: 'rgba(5, 150, 105, 0.1)',
-          tension: 0.4
-        }
-      ]
-    }
-    
-    // Données simulées pour le graphique de répartition
-    const statusData = {
-      labels: ['Réussis', 'En échec', 'En attente'],
-      datasets: [
-        {
-          data: [134, 8, 14],
-          backgroundColor: ['#10B981', '#EF4444', '#F59E0B'],
-          borderWidth: 0
-        }
-      ]
-    }
-    
-    await nextTick()
-    
-    // Créer le graphique des appels
-    if (callsChart.value && callsChartInstance) {
-      callsChartInstance.destroy()
-    }
-    
-    if (callsChart.value) {
-      callsChartInstance = new Chart(callsChart.value, {
-        type: 'line',
-        data: callsData,
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'top' as const
-            }
-          },
-          scales: {
-            y: {
-              beginAtZero: true
-            }
-          }
-        }
-      })
-    }
-    
-    // Créer le graphique de répartition
-    if (statusChart.value && statusChartInstance) {
-      statusChartInstance.destroy()
-    }
-    
-    if (statusChart.value) {
-      statusChartInstance = new Chart(statusChart.value, {
-        type: 'doughnut',
-        data: statusData,
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'bottom' as const
-            }
-          }
-        }
-      })
-    }
-    
-  } catch (error) {
-    console.error('Erreur lors du chargement des graphiques:', error)
-  }
-}
-
-// Voir un appel spécifique
-const viewCall = (callId: number) => {
-  router.push(`/calls?call=${callId}`)
-}
-
-// Formater une date
-const formatDate = (date: Date) => {
-  return new Intl.DateTimeFormat('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(date)
-}
-
-// Initialisation
-onMounted(() => {
-  loadDashboardData()
+  console.warn('recentActivity is not an array:', activity)
+  return []
 })
-</script> 
+
+const criticalActivities = computed(() => {
+  const activity = dashboardStore.recentActivity
+  if (Array.isArray(activity)) {
+    return activity.filter(activity => 
+      activity.description.toLowerCase().includes('urgence') ||
+      activity.description.toLowerCase().includes('critique') ||
+      activity.description.toLowerCase().includes('important')
+    )
+  }
+  return []
+})
+
+const serviceDistribution = computed(() => 
+  dashboardStore.serviceDistribution
+)
+
+const hospitalizationTrend = computed(() => 
+  dashboardStore.hospitalizationTrend
+)
+
+const maxAdmissions = computed(() => {
+  if (!hospitalizationTrend.value || !Array.isArray(hospitalizationTrend.value) || hospitalizationTrend.value.length === 0) return 1
+  return Math.max(...hospitalizationTrend.value.map(day => day.admissions))
+})
+
+const totalAdmissions = computed(() => {
+  if (!hospitalizationTrend.value || !Array.isArray(hospitalizationTrend.value)) {
+    return 0
+  }
+  return hospitalizationTrend.value.reduce((total, day) => total + day.admissions, 0)
+})
+
+const maxServiceCount = computed(() => {
+  if (!serviceDistribution.value || typeof serviceDistribution.value !== 'object') {
+    return 1
+  }
+  const counts = Object.values(serviceDistribution.value)
+  return Math.max(...counts, 1)
+})
+
+// Methods
+const refreshData = async () => {
+  await dashboardStore.refreshData()
+}
+
+const getServiceColor = (service: string) => {
+  return dashboardStore.getServiceColor(service)
+}
+
+const getActivityColor = (type: string) => {
+  return dashboardStore.getActivityColor(type)
+}
+
+// Lifecycle
+onMounted(async () => {
+  if (!dashboardStore.hasData) {
+    await dashboardStore.fetchDashboardData()
+  }
+  
+  if (patientsStore.patients.length === 0) {
+    await patientsStore.fetchPatients()
+  }
+})
+</script>
+
+<style scoped>
+.dashboard-container {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Animation pour les barres du graphique */
+.bg-gradient-to-t {
+  animation: growUp 0.8s ease-out;
+}
+
+@keyframes growUp {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--final-height);
+  }
+}
+</style> 

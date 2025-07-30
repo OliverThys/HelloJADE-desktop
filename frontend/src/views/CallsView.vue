@@ -3,15 +3,15 @@
     <!-- En-tête -->
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">Gestion des appels</h1>
-        <p class="text-gray-600">Suivi des appels post-hospitalisation</p>
+        <h1 class="title-light">Gestion des appels</h1>
+        <p class="subtitle-light">Suivi des appels post-hospitalisation</p>
       </div>
       
       <!-- Actions -->
       <div class="flex items-center space-x-3">
         <button
           @click="exportData"
-          class="btn-secondary"
+          class="btn-action-light"
           :disabled="isLoading"
         >
           <ArrowDownTrayIcon class="h-4 w-4 mr-2" />
@@ -19,7 +19,7 @@
         </button>
         <button
           @click="refreshData"
-          class="btn-primary"
+          class="btn-action-primary-light"
           :disabled="isLoading"
         >
           <ArrowPathIcon class="h-4 w-4 mr-2" :class="{ 'animate-spin': isLoading }" />
@@ -29,11 +29,11 @@
     </div>
 
     <!-- Filtres -->
-    <div class="card">
+    <div class="filter-container-light">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <!-- Recherche -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
+          <label class="filter-label-light">
             Recherche
           </label>
           <div class="relative">
@@ -41,22 +41,22 @@
               v-model="filters.search"
               type="text"
               placeholder="Nom, prénom, téléphone..."
-              class="input-field pl-10"
+              class="filter-input-light pl-10"
               @input="debouncedSearch"
             />
-            <MagnifyingGlassIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <MagnifyingGlassIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-light-muted" />
           </div>
         </div>
 
         <!-- Statut -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
+          <label class="filter-label-light">
             Statut
           </label>
           <select
             v-model="filters.status"
             @change="loadCalls"
-            class="input-field"
+            class="filter-input-light"
           >
             <option value="">Tous les statuts</option>
             <option value="pending">À appeler</option>
@@ -67,27 +67,27 @@
 
         <!-- Date de début -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
+          <label class="filter-label-light">
             Date de début
           </label>
           <input
             v-model="filters.fromDate"
             type="date"
             @change="loadCalls"
-            class="input-field"
+            class="filter-input-light"
           />
         </div>
 
         <!-- Date de fin -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
+          <label class="filter-label-light">
             Date de fin
           </label>
           <input
             v-model="filters.toDate"
             type="date"
             @change="loadCalls"
-            class="input-field"
+            class="filter-input-light"
           />
         </div>
       </div>
@@ -97,280 +97,140 @@
         <div class="flex items-center space-x-2">
           <button
             @click="clearFilters"
-            class="text-sm text-gray-600 hover:text-gray-900"
+            class="link-light"
           >
             Effacer les filtres
           </button>
-        </div>
-        
-        <div class="text-sm text-gray-500">
-          {{ pagination.total }} appels trouvés
+          <span class="text-light-secondary">
+            {{ filteredCalls.length }} appels trouvés
+          </span>
         </div>
       </div>
     </div>
 
     <!-- Tableau des appels -->
-    <div class="card">
-      <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
-            <tr>
-              <th
-                v-for="column in columns"
-                :key="column.key"
-                @click="sortBy(column.key)"
-                :class="[
-                  'table-header cursor-pointer hover:bg-gray-100 transition-colors duration-200',
-                  sortByField === column.key ? 'text-green-600' : ''
-                ]"
-              >
-                <div class="flex items-center">
-                  {{ column.label }}
-                  <div v-if="sortByField === column.key" class="ml-1">
-                    <ChevronUpIcon v-if="sortOrder === 'asc'" class="h-4 w-4" />
-                    <ChevronDownIcon v-else class="h-4 w-4" />
-                  </div>
-                </div>
-              </th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            <tr
-              v-for="call in calls"
-              :key="call.id"
-              class="hover:bg-gray-50 transition-colors duration-200"
-            >
-              <td class="table-cell">
-                <span class="font-medium text-gray-900">#{{ call.patient_number }}</span>
-              </td>
-              <td class="table-cell">
-                <div>
-                  <div class="font-medium text-gray-900">{{ call.patient_last_name }}</div>
-                  <div class="text-gray-500">{{ call.patient_first_name }}</div>
-                </div>
-              </td>
-              <td class="table-cell">
-                {{ formatDate(call.birth_date) }}
-              </td>
-              <td class="table-cell">
-                {{ call.phone }}
-              </td>
-              <td class="table-cell">
-                {{ call.hospital_site }}
-              </td>
-              <td class="table-cell">
-                {{ formatDate(call.discharge_date) }}
-              </td>
-              <td class="table-cell">
-                {{ formatDateTime(call.scheduled_call) }}
-              </td>
-              <td class="table-cell">
-                <span
-                  :class="[
-                    'status-badge',
-                    getStatusClass(call.status)
-                  ]"
-                >
-                  {{ getStatusLabel(call.status) }}
-                </span>
-              </td>
-              <td class="table-cell">
-                {{ call.doctor }}
-              </td>
-              <td class="table-cell">
-                {{ call.service }}
-              </td>
-              <td class="table-cell">
-                {{ call.actual_call ? formatDateTime(call.actual_call) : '-' }}
-              </td>
-              <td class="table-cell">
-                {{ call.duration ? `${call.duration} min` : '-' }}
-              </td>
-              <td class="table-cell">
-                <button
-                  @click="viewSummary(call.id)"
-                  class="text-green-600 hover:text-green-900 font-medium"
-                >
-                  Voir résumé
-                </button>
-              </td>
-              <td class="table-cell">
-                <span class="font-medium" :class="getScoreClass(call.score)">
-                  {{ call.score || '-' }}
-                </span>
-              </td>
-              <td class="table-cell">
-                <div class="flex items-center space-x-2">
-                  <button
-                    @click="viewSummary(call.id)"
-                    class="text-gray-400 hover:text-gray-600"
-                    title="Voir le résumé"
-                  >
-                    <EyeIcon class="h-4 w-4" />
-                  </button>
-                  <button
-                    @click="exportCallPDF(call.id)"
-                    class="text-gray-400 hover:text-gray-600"
-                    title="Exporter en PDF"
-                  >
-                    <DocumentArrowDownIcon class="h-4 w-4" />
-                  </button>
-                  <button
-                    @click="reportIssue(call.id)"
-                    class="text-gray-400 hover:text-red-600"
-                    title="Signaler un problème"
-                  >
-                    <ExclamationTriangleIcon class="h-4 w-4" />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Pagination -->
-      <div class="flex items-center justify-between px-6 py-3 bg-gray-50 border-t border-gray-200">
-        <div class="flex items-center space-x-2">
-          <span class="text-sm text-gray-700">Affichage de</span>
-          <select
-            v-model="pagination.per_page"
-            @change="loadCalls"
-            class="input-field w-20"
+    <div class="table-light">
+      <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+        <thead class="bg-gradient-to-r from-gray-50 to-gray-100 dark:bg-slate-900">
+          <tr>
+            <th scope="col" class="table-header-light">
+              N° PATIENT
+            </th>
+            <th scope="col" class="table-header-light">
+              NOM DU PATIENT
+            </th>
+            <th scope="col" class="table-header-light">
+              DATE DE NAISSANCE
+            </th>
+            <th scope="col" class="table-header-light">
+              TÉLÉPHONE
+            </th>
+            <th scope="col" class="table-header-light">
+              SITE D'HOSPITALISATION
+            </th>
+            <th scope="col" class="table-header-light">
+              DATE DE SORTIE
+            </th>
+            <th scope="col" class="table-header-light">
+              APPEL PRÉVU
+            </th>
+            <th scope="col" class="table-header-light">
+              STATUT
+            </th>
+            <th scope="col" class="table-header-light">
+              MÉDECIN RÉFÉRENT
+            </th>
+          </tr>
+        </thead>
+        <tbody class="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700">
+          <tr
+            v-for="call in paginatedCalls"
+            :key="call.id"
+            class="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors duration-200"
           >
-            <option value="10">10</option>
-            <option value="25">25</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-          </select>
-          <span class="text-sm text-gray-700">entrées</span>
-        </div>
+            <td class="table-cell-light">
+              <span class="data-text-light">#{{ call.patient_id }}</span>
+            </td>
+            <td class="table-cell-light">
+              <span class="data-text-light">{{ call.patient_nom }} {{ call.patient_prenom }}</span>
+            </td>
+            <td class="table-cell-light">
+              <span class="data-text-secondary-light">{{ formatDate(call.date_naissance) }}</span>
+            </td>
+            <td class="table-cell-light">
+              <span class="data-text-secondary-light">{{ call.telephone }}</span>
+            </td>
+            <td class="table-cell-light">
+              <span class="data-text-secondary-light">{{ call.site_hospitalisation }}</span>
+            </td>
+            <td class="table-cell-light">
+              <span class="data-text-secondary-light">{{ formatDate(call.date_sortie) }}</span>
+            </td>
+            <td class="table-cell-light">
+              <span class="data-text-secondary-light">{{ formatDate(call.appel_prevu) }}</span>
+            </td>
+            <td class="table-cell-light">
+              <span 
+                class="badge-yellow-light"
+                v-if="call.statut === 'pending'"
+              >
+                À appeler
+              </span>
+              <span 
+                class="badge-green-light"
+                v-else-if="call.statut === 'called'"
+              >
+                Appelé
+              </span>
+              <span 
+                class="badge-red-light"
+                v-else
+              >
+                Échec
+              </span>
+            </td>
+            <td class="table-cell-light">
+              <span class="data-text-secondary-light">{{ call.medecin_referent }}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
+    <!-- Pagination -->
+    <div class="pagination-light">
+      <div class="flex items-center justify-between">
+        <div class="pagination-text-light">
+          Affichage de {{ startIndex + 1 }} à {{ endIndex }} sur {{ filteredCalls.length }} appels
+        </div>
         <div class="flex items-center space-x-2">
           <button
             @click="previousPage"
-            :disabled="pagination.page === 1"
-            class="btn-secondary px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
+            :disabled="currentPage === 1"
+            class="pagination-button-light disabled:opacity-50 disabled:cursor-not-allowed"
           >
+            <ChevronLeftIcon class="w-4 h-4" />
             Précédent
           </button>
-          
-          <span class="text-sm text-gray-700">
-            Page {{ pagination.page }} sur {{ pagination.pages }}
-          </span>
-          
+          <button
+            v-for="page in visiblePages"
+            :key="page"
+            @click="goToPage(page)"
+            :class="[
+              'pagination-button-light',
+              page === currentPage ? 'pagination-button-active-light' : ''
+            ]"
+          >
+            {{ page }}
+          </button>
           <button
             @click="nextPage"
-            :disabled="pagination.page === pagination.pages"
-            class="btn-secondary px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
+            :disabled="currentPage === totalPages"
+            class="pagination-button-light disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Suivant
+            <ChevronRightIcon class="w-4 h-4" />
           </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modal Résumé d'appel -->
-    <div v-if="showSummaryModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">
-            Résumé de l'appel #{{ selectedCall?.patient_number }}
-          </h3>
-          <button
-            @click="showSummaryModal = false"
-            class="text-gray-400 hover:text-gray-600"
-          >
-            <XMarkIcon class="h-6 w-6" />
-          </button>
-        </div>
-        
-        <div v-if="selectedCall" class="space-y-4">
-          <!-- Informations patient -->
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <h4 class="font-medium text-gray-900 mb-2">Informations patient</h4>
-              <div class="space-y-1 text-sm">
-                <p><span class="font-medium">Nom :</span> {{ selectedCall.patient_last_name }} {{ selectedCall.patient_first_name }}</p>
-                <p><span class="font-medium">Téléphone :</span> {{ selectedCall.phone }}</p>
-                <p><span class="font-medium">Date de sortie :</span> {{ formatDate(selectedCall.discharge_date) }}</p>
-                <p><span class="font-medium">Médecin :</span> {{ selectedCall.doctor }}</p>
-              </div>
-            </div>
-            <div>
-              <h4 class="font-medium text-gray-900 mb-2">Détails de l'appel</h4>
-              <div class="space-y-1 text-sm">
-                <p><span class="font-medium">Statut :</span> 
-                  <span :class="['status-badge', getStatusClass(selectedCall.status)]">
-                    {{ getStatusLabel(selectedCall.status) }}
-                  </span>
-                </p>
-                <p><span class="font-medium">Durée :</span> {{ selectedCall.duration ? `${selectedCall.duration} min` : 'Non disponible' }}</p>
-                <p><span class="font-medium">Score :</span> 
-                  <span :class="['font-medium', getScoreClass(selectedCall.score)]">
-                    {{ selectedCall.score || 'Non calculé' }}
-                  </span>
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Conversation simulée -->
-          <div>
-            <h4 class="font-medium text-gray-900 mb-2">Conversation</h4>
-            <div class="bg-gray-50 rounded-lg p-4 space-y-3">
-              <div class="flex items-start space-x-3">
-                <div class="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span class="text-white text-xs font-medium">IA</span>
-                </div>
-                <div class="bg-white rounded-lg p-3 shadow-sm">
-                  <p class="text-sm">Bonjour ! Je suis HelloJADE. Comment vous sentez-vous aujourd'hui ?</p>
-                </div>
-              </div>
-              <div class="flex items-start space-x-3 justify-end">
-                <div class="bg-blue-100 rounded-lg p-3 shadow-sm max-w-xs">
-                  <p class="text-sm">Ça va mieux qu'hier, merci.</p>
-                </div>
-                <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span class="text-white text-xs font-medium">P</span>
-                </div>
-              </div>
-              <div class="flex items-start space-x-3">
-                <div class="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span class="text-white text-xs font-medium">IA</span>
-                </div>
-                <div class="bg-white rounded-lg p-3 shadow-sm">
-                  <p class="text-sm">Sur une échelle de 0 à 10, comment évaluez-vous votre douleur ?</p>
-                </div>
-              </div>
-              <div class="flex items-start space-x-3 justify-end">
-                <div class="bg-blue-100 rounded-lg p-3 shadow-sm max-w-xs">
-                  <p class="text-sm">8 sur 10, c'est très douloureux.</p>
-                </div>
-                <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span class="text-white text-xs font-medium">P</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Actions -->
-          <div class="flex items-center justify-end space-x-3 pt-4 border-t">
-            <button
-              @click="exportCallPDF(selectedCall.id)"
-              class="btn-secondary"
-            >
-              <DocumentArrowDownIcon class="h-4 w-4 mr-2" />
-              Exporter en PDF
-            </button>
-            <button
-              @click="reportIssue(selectedCall.id)"
-              class="btn-danger"
-            >
-              <ExclamationTriangleIcon class="h-4 w-4 mr-2" />
-              Signaler un problème
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -378,29 +238,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { apiClient } from '@/utils/api'
 import {
   MagnifyingGlassIcon,
   ArrowDownTrayIcon,
   ArrowPathIcon,
-  ChevronUpIcon,
-  ChevronDownIcon,
-  EyeIcon,
-  DocumentArrowDownIcon,
-  ExclamationTriangleIcon,
-  XMarkIcon
+  ChevronLeftIcon,
+  ChevronRightIcon
 } from '@heroicons/vue/24/outline'
-import { useToast } from 'vue-toastification'
+import { formatDate } from '@/utils/api'
 
 const route = useRoute()
-const toast = useToast()
 
 // État de l'interface
 const isLoading = ref(false)
-const showSummaryModal = ref(false)
-const selectedCall = ref(null)
 
 // Filtres
 const filters = reactive({
@@ -411,198 +263,148 @@ const filters = reactive({
 })
 
 // Pagination
-const pagination = reactive({
-  page: 1,
-  per_page: 25,
-  total: 0,
-  pages: 0
+const currentPage = ref(1)
+const itemsPerPage = ref(10)
+
+// Données simulées pour les appels
+const calls = ref([
+  {
+    id: 1,
+    patient_id: 'P001',
+    patient_nom: 'Dupont',
+    patient_prenom: 'Jean',
+    date_naissance: '1980-05-15',
+    telephone: '0123456789',
+    site_hospitalisation: 'Hôpital Central',
+    date_sortie: '2024-01-15',
+    appel_prevu: '2024-01-20',
+    statut: 'pending',
+    medecin_referent: 'Dr. Martin'
+  },
+  {
+    id: 2,
+    patient_id: 'P002',
+    patient_nom: 'Martin',
+    patient_prenom: 'Marie',
+    date_naissance: '1975-08-22',
+    telephone: '0987654321',
+    site_hospitalisation: 'Clinique Sud',
+    date_sortie: '2024-01-18',
+    appel_prevu: '2024-01-25',
+    statut: 'called',
+    medecin_referent: 'Dr. Dubois'
+  }
+])
+
+// Computed
+const filteredCalls = computed(() => {
+  let filtered = calls.value
+
+  if (filters.search) {
+    const search = filters.search.toLowerCase()
+    filtered = filtered.filter(call => 
+      call.patient_nom.toLowerCase().includes(search) ||
+      call.patient_prenom.toLowerCase().includes(search) ||
+      call.telephone.includes(search)
+    )
+  }
+
+  if (filters.status) {
+    filtered = filtered.filter(call => call.statut === filters.status)
+  }
+
+  return filtered
 })
 
-// Tri
-const sortByField = ref('scheduled_call')
-const sortOrder = ref('desc')
+const paginatedCalls = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  const end = start + itemsPerPage.value
+  return filteredCalls.value.slice(start, end)
+})
 
-// Colonnes du tableau
-const columns = [
-  { key: 'patient_number', label: 'N° Patient' },
-  { key: 'patient_name', label: 'Nom du patient' },
-  { key: 'birth_date', label: 'Date de naissance' },
-  { key: 'phone', label: 'Téléphone' },
-  { key: 'hospital_site', label: 'Site d\'hospitalisation' },
-  { key: 'discharge_date', label: 'Date de sortie' },
-  { key: 'scheduled_call', label: 'Appel prévu' },
-  { key: 'status', label: 'Statut' },
-  { key: 'doctor', label: 'Médecin référent' },
-  { key: 'service', label: 'Service' },
-  { key: 'actual_call', label: 'Appel réel' },
-  { key: 'duration', label: 'Durée' },
-  { key: 'summary', label: 'Résumé' },
-  { key: 'score', label: 'Score' },
-  { key: 'actions', label: 'Actions' }
-]
+const totalPages = computed(() => {
+  return Math.ceil(filteredCalls.value.length / itemsPerPage.value)
+})
 
-// Données des appels
-const calls = ref([])
+const visiblePages = computed(() => {
+  const pages = []
+  const maxVisible = 5
+  let start = Math.max(1, currentPage.value - Math.floor(maxVisible / 2))
+  let end = Math.min(totalPages.value, start + maxVisible - 1)
+  
+  if (end - start + 1 < maxVisible) {
+    start = Math.max(1, end - maxVisible + 1)
+  }
+  
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
+  }
+  
+  return pages
+})
 
-// Recherche avec debounce
-let searchTimeout: NodeJS.Timeout
-const debouncedSearch = () => {
-  clearTimeout(searchTimeout)
-  searchTimeout = setTimeout(() => {
-    loadCalls()
-  }, 300)
-}
+const startIndex = computed(() => {
+  return (currentPage.value - 1) * itemsPerPage.value
+})
 
-// Charger les appels
+const endIndex = computed(() => {
+  return Math.min(startIndex.value + itemsPerPage.value, filteredCalls.value.length)
+})
+
+// Méthodes
 const loadCalls = async () => {
+  isLoading.value = true
   try {
-    isLoading.value = true
-    
-    const params = {
-      page: pagination.page,
-      per_page: pagination.per_page,
-      search: filters.search,
-      status: filters.status
-    }
-    
-    const response = await apiClient.calls.getCalls(params)
-    
-    if (response.data.success) {
-      calls.value = response.data.data.items
-      pagination.total = response.data.data.total
-      pagination.pages = response.data.data.pages
-    }
-    
+    // Simulation d'un appel API
+    await new Promise(resolve => setTimeout(resolve, 500))
+    // Ici vous pourriez appeler votre vraie API
   } catch (error) {
     console.error('Erreur lors du chargement des appels:', error)
-    toast.error('Erreur lors du chargement des appels')
   } finally {
     isLoading.value = false
   }
 }
 
-// Effacer les filtres
+const refreshData = () => {
+  loadCalls()
+}
+
+const exportData = () => {
+  // Logique d'export
+  console.log('Export des données')
+}
+
 const clearFilters = () => {
   filters.search = ''
   filters.status = ''
   filters.fromDate = ''
   filters.toDate = ''
-  loadCalls()
+  currentPage.value = 1
 }
 
-// Tri
-const sortBy = (field: string) => {
-  if (sortByField.value === field) {
-    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
-  } else {
-    sortByField.value = field
-    sortOrder.value = 'asc'
-  }
-  loadCalls()
+const debouncedSearch = () => {
+  // Logique de recherche avec debounce
+  currentPage.value = 1
 }
 
-// Pagination
 const previousPage = () => {
-  if (pagination.page > 1) {
-    pagination.page--
-    loadCalls()
+  if (currentPage.value > 1) {
+    currentPage.value--
   }
 }
 
 const nextPage = () => {
-  if (pagination.page < pagination.pages) {
-    pagination.page++
-    loadCalls()
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++
   }
 }
 
-// Voir le résumé d'un appel
-const viewSummary = (callId: number) => {
-  selectedCall.value = calls.value.find(call => call.id === callId)
-  showSummaryModal.value = true
+const goToPage = (page: number) => {
+  currentPage.value = page
 }
 
-// Exporter en PDF
-const exportCallPDF = async (callId: number) => {
-  try {
-    toast.info('Génération du PDF en cours...')
-    // Simuler l'export
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    toast.success('PDF généré avec succès')
-  } catch (error) {
-    console.error('Erreur lors de l\'export PDF:', error)
-    toast.error('Erreur lors de l\'export PDF')
-  }
-}
-
-// Signaler un problème
-const reportIssue = (callId: number) => {
-  toast.info('Fonctionnalité de signalement à implémenter')
-}
-
-// Exporter les données
-const exportData = async () => {
-  try {
-    toast.info('Export en cours...')
-    // Simuler l'export
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    toast.success('Données exportées avec succès')
-  } catch (error) {
-    console.error('Erreur lors de l\'export:', error)
-    toast.error('Erreur lors de l\'export')
-  }
-}
-
-// Actualiser les données
-const refreshData = () => {
-  loadCalls()
-}
-
-// Utilitaires
-const getStatusClass = (status: string) => {
-  switch (status) {
-    case 'pending': return 'status-pending'
-    case 'called': return 'status-called'
-    case 'failed': return 'status-failed'
-    default: return 'status-pending'
-  }
-}
-
-const getStatusLabel = (status: string) => {
-  switch (status) {
-    case 'pending': return 'À appeler'
-    case 'called': return 'Appelé'
-    case 'failed': return 'Échec'
-    default: return 'Inconnu'
-  }
-}
-
-const getScoreClass = (score: number | null) => {
-  if (!score) return 'text-gray-500'
-  if (score >= 8) return 'text-red-600'
-  if (score >= 6) return 'text-yellow-600'
-  return 'text-green-600'
-}
-
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('fr-FR')
-}
-
-const formatDateTime = (dateTime: string) => {
-  return new Date(dateTime).toLocaleString('fr-FR')
-}
-
-// Initialisation
+// Lifecycle
 onMounted(() => {
   loadCalls()
-  
-  // Vérifier s'il y a un appel spécifique dans l'URL
-  const callId = route.query.call
-  if (callId) {
-    const call = calls.value.find(c => c.id === parseInt(callId as string))
-    if (call) {
-      viewSummary(call.id)
-    }
-  }
 })
 </script> 

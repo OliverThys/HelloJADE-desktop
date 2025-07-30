@@ -1,12 +1,22 @@
-import { RouteRecordRaw } from 'vue-router'
+import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
-// Pages
+// Pages principales
 import LoginView from '@/views/LoginView.vue'
 import DashboardView from '@/views/DashboardView.vue'
+import PatientsView from '@/views/PatientsView.vue'
+import PatientDetailView from '@/views/PatientDetailView.vue'
 import CallsView from '@/views/CallsView.vue'
+import AIView from '@/views/AIView.vue'
+import ReportsView from '@/views/ReportsView.vue'
 import AccountSettingsView from '@/views/AccountSettingsView.vue'
-import SystemSettingsView from '@/views/SystemSettingsView.vue'
+
+// Pages admin
+import AdminUsersView from '@/views/admin/AdminUsersView.vue'
+import AdminSystemView from '@/views/admin/AdminSystemView.vue'
+import AdminMonitoringView from '@/views/admin/AdminMonitoringView.vue'
+
+// Page 404
 import NotFoundView from '@/views/NotFoundView.vue'
 
 export const routes: RouteRecordRaw[] = [
@@ -20,7 +30,8 @@ export const routes: RouteRecordRaw[] = [
     component: LoginView,
     meta: { 
       requiresAuth: false,
-      title: 'Connexion - HelloJADE'
+      title: 'Connexion - HelloJADE',
+      layout: 'auth'
     }
   },
   {
@@ -29,8 +40,30 @@ export const routes: RouteRecordRaw[] = [
     component: DashboardView,
     meta: { 
       requiresAuth: true,
-      title: 'Tableau de bord - HelloJADE'
+      title: 'Tableau de bord - HelloJADE',
+      icon: 'HomeIcon'
     }
+  },
+  {
+    path: '/patients',
+    name: 'Patients',
+    component: PatientsView,
+    meta: { 
+      requiresAuth: true,
+      title: 'Gestion des patients - HelloJADE',
+      icon: 'UsersIcon'
+    }
+  },
+  {
+    path: '/patients/:id',
+    name: 'PatientDetail',
+    component: PatientDetailView,
+    meta: { 
+      requiresAuth: true,
+      title: 'Détails du patient - HelloJADE',
+      icon: 'UserIcon'
+    },
+    props: true
   },
   {
     path: '/calls',
@@ -38,7 +71,28 @@ export const routes: RouteRecordRaw[] = [
     component: CallsView,
     meta: { 
       requiresAuth: true,
-      title: 'Gestion des appels - HelloJADE'
+      title: 'Gestion des appels - HelloJADE',
+      icon: 'PhoneIcon'
+    }
+  },
+  {
+    path: '/ai',
+    name: 'AI',
+    component: AIView,
+    meta: { 
+      requiresAuth: true,
+      title: 'Transcription & IA - HelloJADE',
+      icon: 'CpuChipIcon'
+    }
+  },
+  {
+    path: '/reports',
+    name: 'Reports',
+    component: ReportsView,
+    meta: { 
+      requiresAuth: true,
+      title: 'Rapports - HelloJADE',
+      icon: 'ChartBarIcon'
     }
   },
   {
@@ -47,17 +101,42 @@ export const routes: RouteRecordRaw[] = [
     component: AccountSettingsView,
     meta: { 
       requiresAuth: true,
-      title: 'Paramètres du compte - HelloJADE'
+      title: 'Paramètres du compte - HelloJADE',
+      icon: 'UserIcon'
     }
   },
+  // Routes admin
   {
-    path: '/system',
-    name: 'System',
-    component: SystemSettingsView,
+    path: '/admin/users',
+    name: 'AdminUsers',
+    component: AdminUsersView,
     meta: { 
       requiresAuth: true,
       requiresAdmin: true,
-      title: 'Paramétrage du système - HelloJADE'
+      title: 'Gestion utilisateurs - HelloJADE',
+      icon: 'ShieldCheckIcon'
+    }
+  },
+  {
+    path: '/admin/system',
+    name: 'AdminSystem',
+    component: AdminSystemView,
+    meta: { 
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Configuration système - HelloJADE',
+      icon: 'CogIcon'
+    }
+  },
+  {
+    path: '/admin/monitoring',
+    name: 'AdminMonitoring',
+    component: AdminMonitoringView,
+    meta: { 
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Monitoring - HelloJADE',
+      icon: 'DatabaseIcon'
     }
   },
   {
@@ -70,6 +149,19 @@ export const routes: RouteRecordRaw[] = [
     }
   }
 ]
+
+// Création du router
+const router = createRouter({
+  history: createWebHistory(),
+  routes,
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) {
+      return savedPosition
+    } else {
+      return { top: 0 }
+    }
+  }
+})
 
 // Navigation guard
 export function setupRouterGuards(router: any) {
@@ -105,4 +197,35 @@ export function setupRouterGuards(router: any) {
     
     next()
   })
-} 
+}
+
+// Fonction pour obtenir les routes de navigation
+export function getNavigationRoutes() {
+  return routes.filter(route => 
+    route.meta?.icon && 
+    !route.meta?.requiresAdmin
+  )
+}
+
+// Fonction pour obtenir les routes admin
+export function getAdminRoutes() {
+  return routes.filter(route => 
+    route.meta?.requiresAdmin
+  )
+}
+
+// Fonction pour obtenir une route par nom
+export function getRouteByName(name: string) {
+  return routes.find(route => route.name === name)
+}
+
+// Fonction pour obtenir les routes accessibles par l'utilisateur
+export function getAccessibleRoutes(userRole: string) {
+  return routes.filter(route => {
+    if (!route.meta?.requiresAuth) return true
+    if (route.meta?.requiresAdmin && userRole !== 'admin') return false
+    return true
+  })
+}
+
+export default router 

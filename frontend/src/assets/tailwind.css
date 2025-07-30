@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Couleurs HelloJADE */
+/* Couleurs HelloJADE - Mode Light */
 :root {
   --hellojade-green: #10B981;
   --hellojade-green-light: #34D399;
@@ -12,6 +12,21 @@
   --hellojade-gray: #6B7280;
   --hellojade-gray-light: #F3F4F6;
   --hellojade-gray-dark: #374151;
+  
+  /* Nouvelles couleurs pour le mode light avec meilleur contraste */
+  --hellojade-bg-light: #ffffff;
+  --hellojade-bg-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%);
+  --hellojade-card-light: #ffffff;
+  --hellojade-text-primary: #0f172a; /* Plus sombre pour meilleur contraste */
+  --hellojade-text-secondary: #475569; /* Plus sombre */
+  --hellojade-text-muted: #64748b; /* Plus sombre */
+  --hellojade-border-light: #e2e8f0;
+  --hellojade-shadow-light: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --hellojade-shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  
+  /* Mode sombre (inchangé) */
+  --hellojade-bg: #36454F;
+  --hellojade-text-light: #10B981;
 }
 
 /* Styles de base */
@@ -21,7 +36,8 @@
   }
   
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 text-slate-800 dark:bg-slate-900 dark:text-white;
+    background-attachment: fixed;
   }
 
   /* Correction des tailles d'icônes */
@@ -33,59 +49,59 @@
 /* Composants personnalisés */
 @layer components {
   .btn-primary {
-    @apply bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+    @apply bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-green-500/30;
   }
   
   .btn-secondary {
-    @apply bg-white hover:bg-gray-50 text-gray-700 font-medium py-2 px-4 rounded-lg border border-gray-300 transition-colors duration-200;
+    @apply bg-white hover:bg-gray-50 text-gray-700 font-medium py-3 px-6 rounded-xl border-2 border-gray-200 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-gray-500/30 dark:bg-slate-800 dark:text-white dark:border-slate-600 dark:hover:bg-slate-700;
   }
   
   .btn-danger {
-    @apply bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+    @apply bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-red-500/30;
   }
   
   .card {
-    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+    @apply bg-white rounded-2xl shadow-lg border border-gray-100 p-6 text-slate-800 backdrop-blur-sm dark:bg-slate-800 dark:border-slate-700 dark:text-white transition-all duration-300 hover:shadow-xl hover:scale-[1.02];
   }
   
   .input-field {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors duration-200;
+    @apply w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-500/30 focus:border-green-500 transition-all duration-300 bg-white text-slate-800 placeholder-gray-400 dark:bg-slate-800 dark:border-slate-600 dark:text-white dark:placeholder-slate-400;
   }
   
   .table-header {
-    @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50;
+    @apply px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider bg-gradient-to-r from-gray-50 to-gray-100 dark:bg-slate-900 dark:text-slate-400;
   }
   
   .table-cell {
-    @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900 border-b border-gray-200;
+    @apply px-6 py-4 whitespace-nowrap text-sm text-slate-700 border-b border-gray-100 dark:text-white dark:border-slate-700;
   }
   
   .status-badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200;
   }
   
   .status-pending {
-    @apply bg-yellow-100 text-yellow-800;
+    @apply bg-yellow-100 text-yellow-800 border border-yellow-200 dark:bg-yellow-900/50 dark:text-yellow-300;
   }
   
   .status-called {
-    @apply bg-green-100 text-green-800;
+    @apply bg-green-100 text-green-800 border border-green-200 dark:bg-green-900/50 dark:text-green-300;
   }
   
   .status-failed {
-    @apply bg-red-100 text-red-800;
+    @apply bg-red-100 text-red-800 border border-red-200 dark:bg-red-900/50 dark:text-red-300;
   }
   
   .kpi-card {
-    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+    @apply bg-white rounded-2xl shadow-lg border border-gray-100 p-6 text-slate-800 backdrop-blur-sm dark:bg-slate-800 dark:border-slate-700 dark:text-white transition-all duration-300 hover:shadow-xl hover:scale-[1.02];
   }
   
   .kpi-value {
-    @apply text-3xl font-bold text-gray-900;
+    @apply text-4xl font-bold text-slate-900 dark:text-white;
   }
   
   .kpi-label {
-    @apply text-sm font-medium text-gray-500;
+    @apply text-sm font-semibold text-slate-700 dark:text-slate-300;
   }
   
   .kpi-change {
@@ -93,14 +109,209 @@
   }
   
   .kpi-change-positive {
-    @apply text-green-600;
+    @apply text-green-600 dark:text-green-400;
   }
   
   .kpi-change-negative {
-    @apply text-red-600;
+    @apply text-red-600 dark:text-red-400;
+  }
+  
+  /* Nouvelles classes pour corriger les problèmes de contraste */
+  .text-light-primary {
+    @apply text-slate-900 dark:text-white;
+  }
+  
+  .text-light-secondary {
+    @apply text-slate-700 dark:text-slate-300;
+  }
+  
+  .text-light-muted {
+    @apply text-slate-600 dark:text-slate-400;
+  }
+  
+  .text-light-accent {
+    @apply text-slate-800 dark:text-slate-200;
+  }
+  
+  /* Classes pour les titres et sous-titres */
+  .title-light {
+    @apply text-2xl font-bold text-slate-900 dark:text-white;
+  }
+  
+  .subtitle-light {
+    @apply text-lg font-medium text-slate-700 dark:text-slate-300;
+  }
+  
+  .description-light {
+    @apply text-sm text-slate-600 dark:text-slate-400;
+  }
+  
+  /* Classes pour les cartes et conteneurs */
+  .card-light {
+    @apply bg-white rounded-2xl shadow-lg border border-gray-100 p-6 text-slate-900 dark:bg-slate-800 dark:border-slate-700 dark:text-white;
+  }
+  
+  .card-dark {
+    @apply bg-slate-800 rounded-2xl shadow-lg border border-slate-700 p-6 text-white dark:bg-slate-900 dark:border-slate-600;
+  }
+  
+  /* Classes pour les tableaux */
+  .table-light {
+    @apply bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden;
+  }
+  
+  .table-header-light {
+    @apply bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider dark:bg-slate-900 dark:text-slate-400;
+  }
+  
+  .table-cell-light {
+    @apply px-6 py-4 whitespace-nowrap text-sm text-slate-700 border-b border-gray-100 dark:text-white dark:border-slate-700;
+  }
+  
+  /* Classes pour les inputs et formulaires */
+  .input-light {
+    @apply w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-500/30 focus:border-green-500 transition-all duration-300 bg-white text-slate-900 placeholder-slate-500 dark:bg-slate-800 dark:border-slate-600 dark:text-white dark:placeholder-slate-400;
+  }
+  
+  .placeholder-light {
+    @apply placeholder-slate-500 dark:placeholder-slate-400;
+  }
+  
+  /* Classes pour les badges et étiquettes */
+  .badge-light {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600;
+  }
+  
+  .badge-green-light {
+    @apply bg-green-100 text-green-800 border border-green-200 dark:bg-green-900/50 dark:text-green-300;
+  }
+  
+  .badge-yellow-light {
+    @apply bg-yellow-100 text-yellow-800 border border-yellow-200 dark:bg-yellow-900/50 dark:text-yellow-300;
+  }
+  
+  .badge-red-light {
+    @apply bg-red-100 text-red-800 border border-red-200 dark:bg-red-900/50 dark:text-red-300;
+  }
+  
+  /* Classes pour les graphiques et charts */
+  .chart-container-light {
+    @apply bg-white rounded-2xl shadow-lg border border-gray-100 p-6 text-slate-900 dark:bg-slate-800 dark:border-slate-700 dark:text-white;
+  }
+  
+  .chart-title-light {
+    @apply text-xl font-bold text-slate-800 dark:text-white mb-4;
+  }
+  
+  .chart-legend-light {
+    @apply text-slate-700 dark:text-white;
+  }
+  
+  .chart-axis-light {
+    @apply text-slate-300 dark:text-slate-400;
+  }
+  
+  /* Classes pour les notifications */
+  .notification-light {
+    @apply bg-white rounded-xl shadow-lg border border-gray-100 p-4 text-slate-900 dark:bg-slate-800 dark:border-slate-700 dark:text-white;
+  }
+  
+  .notification-success-light {
+    @apply bg-green-50 border-green-200 text-green-800 dark:bg-green-900/50 dark:border-green-700 dark:text-green-300;
+  }
+  
+  .notification-error-light {
+    @apply bg-red-50 border-red-200 text-red-800 dark:bg-red-900/50 dark:border-red-700 dark:text-red-300;
+  }
+  
+  /* Classes pour les boutons d'action */
+  .btn-action-light {
+    @apply bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2 px-4 rounded-lg transition-all duration-200 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-300;
+  }
+  
+  .btn-action-primary-light {
+    @apply bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg;
+  }
+  
+  .btn-action-secondary-light {
+    @apply bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg;
+  }
+  
+  /* Classes pour les icônes */
+  .icon-light {
+    @apply text-slate-600 dark:text-slate-400;
+  }
+  
+  .icon-light-active {
+    @apply text-slate-900 dark:text-white;
+  }
+  
+  .icon-light-primary {
+    @apply text-green-600 dark:text-green-400;
+  }
+  
+  /* Classes pour les liens */
+  .link-light {
+    @apply text-blue-600 hover:text-blue-700 underline dark:text-blue-400 dark:hover:text-blue-300;
+  }
+  
+  /* Classes pour les textes de données */
+  .data-text-light {
+    @apply text-slate-900 dark:text-white font-medium;
+  }
+  
+  .data-text-secondary-light {
+    @apply text-slate-700 dark:text-slate-300;
+  }
+  
+  .data-text-muted-light {
+    @apply text-slate-600 dark:text-slate-400;
+  }
+  
+  /* Classes pour les filtres et recherche */
+  .filter-container-light {
+    @apply bg-white rounded-xl shadow-lg border border-gray-100 p-6 dark:bg-slate-800 dark:border-slate-700;
+  }
+  
+  .filter-label-light {
+    @apply block text-sm font-semibold text-slate-700 mb-2 dark:text-slate-300;
+  }
+  
+  .filter-input-light {
+    @apply w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-500/30 focus:border-green-500 transition-all duration-300 bg-white text-slate-900 placeholder-slate-500 dark:bg-slate-800 dark:border-slate-600 dark:text-white dark:placeholder-slate-400;
+  }
+  
+  /* Classes pour les paginations */
+  .pagination-light {
+    @apply flex items-center justify-between px-6 py-4 bg-white border-t border-gray-100 dark:bg-slate-800 dark:border-slate-700;
+  }
+  
+  .pagination-text-light {
+    @apply text-sm text-slate-700 dark:text-slate-300;
+  }
+  
+  .pagination-button-light {
+    @apply px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-600;
+  }
+  
+  .pagination-button-active-light {
+    @apply px-3 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-lg dark:bg-blue-600 dark:border-blue-600;
+  }
+  
+  /* Classes pour les sections vides */
+  .empty-state-light {
+    @apply text-center py-12 text-slate-600 dark:text-slate-400;
+  }
+  
+  .empty-state-title-light {
+    @apply text-lg font-semibold text-slate-700 mb-2 dark:text-slate-300;
+  }
+  
+  .empty-state-description-light {
+    @apply text-sm text-slate-600 dark:text-slate-400;
   }
 
-  /* Classes d'icônes avec tailles fixes */
+  /* Classes utilitaires existantes */
   .icon-xs {
     @apply w-3 h-3;
   }
@@ -124,23 +335,105 @@
   .icon-2xl {
     @apply w-12 h-12;
   }
-}
-
-/* Animations */
-@layer utilities {
+  
+  .bg-hellojade-light {
+    @apply bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20;
+  }
+  
+  .bg-hellojade-light input,
+  .bg-hellojade-light textarea,
+  .bg-hellojade-light select {
+    @apply bg-white/80 backdrop-blur-sm border-gray-200 focus:border-green-500 focus:ring-green-500/30 dark:bg-slate-800/80 dark:border-slate-600 dark:focus:border-green-400;
+  }
+  
+  .bg-hellojade-light label {
+    @apply text-slate-700 font-medium dark:text-slate-300;
+  }
+  
+  .bg-hellojade-light h1,
+  .bg-hellojade-light h2,
+  .bg-hellojade-light h3,
+  .bg-hellojade-light h4,
+  .bg-hellojade-light h5,
+  .bg-hellojade-light h6 {
+    @apply text-slate-900 dark:text-white;
+  }
+  
+  .bg-hellojade-light p {
+    @apply text-slate-700 dark:text-slate-300;
+  }
+  
+  .search-container {
+    @apply relative;
+  }
+  
+  .search-input {
+    @apply w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-500/30 focus:border-green-500 transition-all duration-300 bg-white text-slate-900 placeholder-slate-500 dark:bg-slate-800 dark:border-slate-600 dark:text-white dark:placeholder-slate-400;
+  }
+  
+  .table-container {
+    @apply bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden dark:bg-slate-800 dark:border-slate-700;
+  }
+  
+  .table-header {
+    @apply px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider bg-gradient-to-r from-gray-50 to-gray-100 dark:bg-slate-900 dark:text-slate-400;
+  }
+  
+  .main-container {
+    @apply bg-white rounded-2xl shadow-lg border border-gray-100 p-6 dark:bg-slate-800 dark:border-slate-700 dark:text-white;
+  }
+  
+  .text-hellojade-primary {
+    @apply text-green-600 dark:text-green-400;
+  }
+  
+  .bg-hellojade-primary {
+    @apply bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600;
+  }
+  
+  .glass-light {
+    @apply bg-white/80 backdrop-blur-xl border border-white/20 shadow-2xl dark:bg-slate-800/80 dark:border-slate-700/50;
+  }
+  
+  .gradient-hellojade {
+    @apply bg-gradient-to-r from-green-600 to-green-700 dark:from-green-500 dark:to-green-600;
+  }
+  
+  .gradient-card {
+    @apply bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-900;
+  }
+  
+  .hover-lift {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-xl;
+  }
+  
+  .pulse-glow {
+    @apply animate-pulse;
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+  }
+  
   .fade-in {
-    animation: fadeIn 0.3s ease-in-out;
+    @apply animate-fade-in;
   }
   
   .slide-up {
-    animation: slideUp 0.3s ease-out;
+    @apply animate-slide-up;
   }
   
   .scale-in {
-    animation: scaleIn 0.2s ease-out;
+    @apply animate-scale-in;
+  }
+  
+  .bounce-in {
+    @apply animate-bounce-in;
+  }
+  
+  .slide-in-right {
+    @apply animate-slide-in-right;
   }
 }
 
+/* Animations */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -152,7 +445,7 @@
 
 @keyframes slideUp {
   from {
-    transform: translateY(10px);
+    transform: translateY(30px);
     opacity: 0;
   }
   to {
@@ -163,11 +456,70 @@
 
 @keyframes scaleIn {
   from {
-    transform: scale(0.95);
+    transform: scale(0.9);
     opacity: 0;
   }
   to {
     transform: scale(1);
     opacity: 1;
   }
+}
+
+@keyframes bounceIn {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Scrollbar personnalisée */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 } 

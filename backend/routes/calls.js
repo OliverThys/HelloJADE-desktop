@@ -11,10 +11,10 @@ router.get('/', async (req, res) => {
     const { page = 1, per_page = 10, search = '', status = '' } = req.query
     
     // Requête SQL pour récupérer les patients hospitalisés
-    const sql = `
+    let sql = `
       SELECT 
         p.PATIENT_ID as id,
-        p.NUMERO_REGISTRE_NATIONAL as patient_number,
+        p.NUMERO_PATIENT as patient_number,
         p.NOM as patient_last_name,
         p.PRENOM as patient_first_name,
         p.DATE_NAISSANCE as birth_date,
@@ -23,27 +23,27 @@ router.get('/', async (req, res) => {
         h.DATE_SORTIE as discharge_date,
         h.DATE_SORTIE + 1 as scheduled_call,
         'pending' as status,
-        m.NOM || ' ' || m.PRENOM as doctor,
-        s.NOM_SERVICE as service,
+        h.MEDECIN as doctor,
+        h.SERVICE as service,
         NULL as actual_call,
         NULL as duration,
         NULL as score
       FROM PATIENTS p
       INNER JOIN HOSPITALISATIONS h ON p.PATIENT_ID = h.PATIENT_ID
-      INNER JOIN MEDECINS m ON h.MEDECIN_TRAITANT_ID = m.MEDECIN_ID
-      INNER JOIN SERVICES s ON h.SERVICE_ID = s.SERVICE_ID
-      WHERE h.DATE_SORTIE IS NOT NULL OR h.STATUT = 'EN_COURS'
-      ${search ? "AND (p.NOM LIKE '%' || :search || '%' OR p.PRENOM LIKE '%' || :search || '%' OR p.NUMERO_REGISTRE_NATIONAL LIKE '%' || :search || '%')" : ''}
-      ORDER BY h.DATE_SORTIE DESC
+      WHERE (h.DATE_SORTIE IS NOT NULL OR h.STATUT = 'EN_COURS')
     `
+    
+    const binds = []
+    
+    if (search) {
+      sql += " AND (p.NOM LIKE '%' || ? || '%' OR p.PRENOM LIKE '%' || ? || '%' OR p.NUMERO_PATIENT LIKE '%' || ? || '%')"
+      binds.push(search, search, search)
+    }
+    
+    sql += " ORDER BY h.DATE_SORTIE DESC"
     
     console.log('🔍 Exécution de la requête SQL...')
     console.log('📝 SQL:', sql)
-    
-    const binds = []
-    if (search) binds.push(search)
-    if (status) binds.push(status)
-    
     console.log('🔗 Binds:', binds)
     
     const patients = await executeQuery(sql, binds)
@@ -113,7 +113,7 @@ router.get('/:id', async (req, res) => {
     const sql = `
       SELECT 
         p.PATIENT_ID as id,
-        p.NUMERO_REGISTRE_NATIONAL as patient_number,
+        p.NUMERO_PATIENT as patient_number,
         p.NOM as patient_last_name,
         p.PRENOM as patient_first_name,
         p.DATE_NAISSANCE as birth_date,
@@ -122,15 +122,13 @@ router.get('/:id', async (req, res) => {
         h.DATE_SORTIE as discharge_date,
         h.DATE_SORTIE + 1 as scheduled_call,
         'pending' as status,
-        m.NOM || ' ' || m.PRENOM as doctor,
-        s.NOM_SERVICE as service,
+        h.MEDECIN as doctor,
+        h.SERVICE as service,
         NULL as actual_call,
         NULL as duration,
         NULL as score
       FROM PATIENTS p
       INNER JOIN HOSPITALISATIONS h ON p.PATIENT_ID = h.PATIENT_ID
-      INNER JOIN MEDECINS m ON h.MEDECIN_TRAITANT_ID = m.MEDECIN_ID
-      INNER JOIN SERVICES s ON h.SERVICE_ID = s.SERVICE_ID
       WHERE p.PATIENT_ID = :id
     `
     

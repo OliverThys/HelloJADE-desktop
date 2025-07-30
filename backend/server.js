@@ -24,7 +24,10 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
 // Routes
+app.use('/api/auth', require('./routes/auth'))
 app.use('/api/calls', require('./routes/calls'))
+app.use('/api/patients', require('./routes/patients'))
+app.use('/api/dashboard', require('./routes/dashboard'))
 
 // Route de santé
 app.get('/api/health', (req, res) => {
@@ -44,7 +47,9 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     endpoints: {
       health: '/api/health',
-      calls: '/api/calls'
+      calls: '/api/calls',
+      patients: '/api/patients',
+      dashboard: '/api/dashboard'
     }
   })
 })
@@ -59,28 +64,51 @@ app.use('*', (req, res) => {
 
 // Gestion globale des erreurs
 app.use((err, req, res, next) => {
-  console.error('Erreur serveur:', err)
+  console.error('❌ Erreur serveur:', err)
+  console.error('🔍 Stack trace:', err.stack)
+  console.error('📝 URL:', req.url)
+  console.error('📝 Méthode:', req.method)
+  console.error('📝 Headers:', req.headers)
+  
   res.status(500).json({
     success: false,
     message: 'Erreur interne du serveur',
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Une erreur est survenue'
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Une erreur est survenue',
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
   })
 })
 
 // Initialiser la base de données et démarrer le serveur
 async function startServer() {
   try {
+    console.log('🔄 Démarrage du serveur HelloJADE...')
+    
     // Initialiser la connexion Oracle
+    console.log('🗄️ Initialisation de la base de données Oracle...')
     await initialize()
+    console.log('✅ Base de données Oracle initialisée avec succès')
     
     // Démarrer le serveur
     app.listen(PORT, () => {
       console.log(`🚀 Serveur HelloJADE démarré sur le port ${PORT}`)
       console.log(`📊 API disponible sur http://localhost:${PORT}`)
       console.log(`🔗 Frontend attendu sur ${process.env.CORS_ORIGIN || 'http://localhost:5173'}`)
+      console.log(`\n📋 Endpoints disponibles:`)
+      console.log(`   • GET  /api/health - Santé du serveur`)
+      console.log(`   • GET  /api/patients - Liste des patients`)
+      console.log(`   • GET  /api/patients/:id - Détails d'un patient`)
+      console.log(`   • GET  /api/patients/search/phone/:phone - Recherche par téléphone`)
+      console.log(`   • GET  /api/patients/:id/hospitalisations - Hospitalisations d'un patient`)
+      console.log(`   • GET  /api/patients/:id/consultations - Consultations d'un patient`)
+      console.log(`   • GET  /api/patients/:id/transcriptions - Transcriptions d'un patient`)
+      console.log(`   • GET  /api/patients/:id/analyses - Analyses IA d'un patient`)
+      console.log(`   • GET  /api/dashboard/stats - Statistiques générales`)
+      console.log(`   • GET  /api/dashboard/recent-activity - Activité récente`)
+      console.log(`   • *    /api/calls - Routes téléphonie existantes`)
     })
   } catch (error) {
     console.error('❌ Erreur lors du démarrage du serveur:', error)
+    console.error('🔍 Stack trace:', error.stack)
     process.exit(1)
   }
 }
@@ -99,4 +127,4 @@ process.on('SIGTERM', async () => {
 })
 
 // Démarrer le serveur
-startServer() 
+startServer()

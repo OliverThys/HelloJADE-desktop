@@ -64,59 +64,54 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       isLoading.value = true
       
-      // Simulation d'un délai réseau
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Appel API LDAP
+      const response = await api.post('/api/auth/login', {
+        username: credentials.username,
+        password: credentials.password
+      })
       
-      // Authentification simulée
-      if (credentials.username === 'admin@hellojade.fr' && credentials.password === 'admin123') {
-        // Connexion réussie - Admin
-        tokens.value = MOCK_TOKENS
-        user.value = MOCK_ADMIN_USER
+      if (response.data.success) {
+        const { token, user: userData } = response.data.data
         
-        // Stocker en localStorage
-        localStorage.setItem('access_token', MOCK_TOKENS.access_token)
-        localStorage.setItem('refresh_token', MOCK_TOKENS.refresh_token)
-        localStorage.setItem('user', JSON.stringify(MOCK_ADMIN_USER))
-        
-        // Configurer l'API
-        api.defaults.headers.common['Authorization'] = `Bearer ${MOCK_TOKENS.access_token}`
-        
-        toast.success('Connexion réussie - Bienvenue Administrateur !')
-        return true
-        
-      } else if (credentials.username === 'user@hellojade.fr' && credentials.password === 'user123') {
-        // Connexion réussie - Utilisateur standard
-        const standardUser: User = {
-          ...MOCK_ADMIN_USER,
-          id: 2,
-          username: 'user',
-          email: 'user@hellojade.fr',
-          first_name: 'Utilisateur',
-          last_name: 'Standard',
-          role: 'user'
+        // Stocker les tokens
+        tokens.value = {
+          access_token: token,
+          refresh_token: token, // Pour simplifier, on utilise le même token
+          expires_in: 3600
         }
         
-        tokens.value = MOCK_TOKENS
-        user.value = standardUser
+        // Stocker l'utilisateur
+        user.value = {
+          id: userData.id,
+          username: userData.username,
+          email: userData.email,
+          first_name: userData.first_name,
+          last_name: userData.last_name,
+          role: userData.role,
+          is_active: true,
+          avatar: '/default-avatar.png'
+        }
         
-        localStorage.setItem('access_token', MOCK_TOKENS.access_token)
-        localStorage.setItem('refresh_token', MOCK_TOKENS.refresh_token)
-        localStorage.setItem('user', JSON.stringify(standardUser))
+        // Stocker en localStorage
+        localStorage.setItem('access_token', token)
+        localStorage.setItem('refresh_token', token)
+        localStorage.setItem('user', JSON.stringify(user.value))
         
-        api.defaults.headers.common['Authorization'] = `Bearer ${MOCK_TOKENS.access_token}`
+        // Configurer l'API
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`
         
-        toast.success('Connexion réussie - Bienvenue !')
+        toast.success(`Connexion réussie - Bienvenue ${userData.first_name} !`)
         return true
         
       } else {
-        // Échec de connexion
-        toast.error('Email ou mot de passe incorrect')
+        toast.error(response.data.message || 'Email ou mot de passe incorrect')
         return false
       }
       
     } catch (error: any) {
       console.error('Erreur de connexion:', error)
-      toast.error('Erreur de connexion')
+      const message = error.response?.data?.message || 'Erreur de connexion'
+      toast.error(message)
       return false
     } finally {
       isLoading.value = false

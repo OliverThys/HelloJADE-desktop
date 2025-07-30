@@ -1,5 +1,5 @@
 <template>
-  <header class="bg-white shadow-sm border-b border-gray-200">
+  <header class="bg-[#36454F] shadow-sm border-b border-gray-200">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between items-center h-16">
         <!-- Logo et titre -->
@@ -76,7 +76,7 @@
               leave-to-class="transform opacity-0 scale-95"
             >
               <MenuItems
-                class="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                class="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-[#36454F] py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
               >
                 <MenuItem v-slot="{ active }">
                   <router-link
@@ -124,7 +124,7 @@
     <!-- Notifications dropdown -->
     <div
       v-if="showNotifications"
-      class="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-20"
+      class="absolute right-0 mt-2 w-80 bg-[#36454F] rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-20"
     >
       <div class="py-1">
         <div

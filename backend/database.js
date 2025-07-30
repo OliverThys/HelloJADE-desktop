@@ -34,6 +34,13 @@ console.log('🔧 Configuration Oracle:', {
 async function initialize() {
   try {
     console.log('🔄 Tentative de connexion à Oracle...')
+    console.log('🔧 Configuration utilisée:', {
+      host: process.env.ORACLE_HOST,
+      port: process.env.ORACLE_PORT,
+      service: process.env.ORACLE_SERVICE,
+      user: process.env.ORACLE_USER,
+      connectString: dbConfig.connectString
+    })
     
     // Vérifier si un pool existe déjà de manière sécurisée
     try {
@@ -41,17 +48,20 @@ async function initialize() {
       if (existingPool) {
         console.log('⚠️ Pool existant détecté, fermeture...')
         await existingPool.close(10)
+        console.log('✅ Pool existant fermé')
       }
     } catch (poolError) {
       // Si getPool() échoue, c'est normal - aucun pool n'existe
       console.log('ℹ️ Aucun pool existant détecté')
     }
     
+    console.log('🏗️ Création du nouveau pool...')
     await oracledb.createPool(dbConfig)
     console.log('✅ Pool de connexion Oracle créé avec succès')
     console.log(`📊 Connecté à ${process.env.ORACLE_HOST}:${process.env.ORACLE_PORT}/${process.env.ORACLE_SERVICE}`)
   } catch (err) {
     console.error('❌ Erreur lors de la création du pool Oracle:', err)
+    console.error('🔍 Stack trace:', err.stack)
     console.error('🔍 Vérifiez que:')
     console.error('   - La VM Windows Server est accessible sur 192.168.1.100')
     console.error('   - Oracle Database 21c XE est démarré')
@@ -65,11 +75,20 @@ async function initialize() {
 async function getConnection() {
   try {
     console.log('🔗 Obtention d\'une connexion du pool...')
+    
+    // Vérifier si le pool existe
+    const pool = oracledb.getPool()
+    if (!pool) {
+      throw new Error('Aucun pool de connexion disponible')
+    }
+    
+    console.log('📊 Pool disponible, obtention de la connexion...')
     const connection = await oracledb.getConnection()
     console.log('✅ Connexion obtenue avec succès')
     return connection
   } catch (err) {
     console.error('❌ Erreur lors de l\'obtention d\'une connexion:', err)
+    console.error('🔍 Stack trace:', err.stack)
     throw err
   }
 }
@@ -88,6 +107,11 @@ async function closePool() {
 async function executeQuery(sql, binds = [], options = {}) {
   let connection
   try {
+    console.log('🔍 Exécution de la requête SQL...')
+    console.log('📝 SQL:', sql)
+    console.log('🔗 Binds:', binds)
+    console.log('⚙️ Options:', options)
+    
     connection = await getConnection()
     
     const defaultOptions = {
@@ -95,15 +119,22 @@ async function executeQuery(sql, binds = [], options = {}) {
       autoCommit: true
     }
     
-    const result = await connection.execute(sql, binds, { ...defaultOptions, ...options })
+    const finalOptions = { ...defaultOptions, ...options }
+    console.log('⚙️ Options finales:', finalOptions)
+    
+    const result = await connection.execute(sql, binds, finalOptions)
+    console.log(`✅ Requête exécutée avec succès. ${result.rows ? result.rows.length : 0} lignes retournées`)
+    
     return result.rows || []
   } catch (err) {
     console.error('❌ Erreur lors de l\'exécution de la requête:', err)
+    console.error('🔍 Stack trace:', err.stack)
     throw err
   } finally {
     if (connection) {
       try {
         await connection.close()
+        console.log('🔗 Connexion fermée avec succès')
       } catch (err) {
         console.error('❌ Erreur lors de la fermeture de la connexion:', err)
       }
