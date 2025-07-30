@@ -1,22 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { callsService, patientsService, type Patient } from '@/utils/api'
+import { callsService, patientsService, type Patient, type Call } from '@/utils/api'
 import { useToast } from 'vue-toastification'
-
-export interface Call {
-  id: number
-  numero_appelant: string
-  numero_appele: string
-  date_debut: string
-  date_fin?: string
-  duree?: number
-  statut: 'en_cours' | 'termine' | 'rate' | 'en_attente'
-  type: 'entrant' | 'sortant'
-  patient_id?: number
-  notes?: string
-  transcription_id?: number
-  analyse_id?: number
-}
 
 export interface CallSession {
   isActive: boolean
@@ -50,17 +35,17 @@ export const useCallsStore = defineStore('calls', () => {
 
   // Computed
   const activeCalls = computed(() => 
-    calls.value.filter(call => call.statut === 'en_cours')
+    calls.value.filter(call => call.statut === 'in_progress')
   )
 
   const incomingCalls = computed(() => 
-    calls.value.filter(call => call.type === 'entrant' && call.statut === 'en_attente')
+    calls.value.filter(call => call.statut === 'pending')
   )
 
   const todayCalls = computed(() => {
     const today = new Date().toISOString().split('T')[0]
     return calls.value.filter(call => 
-      call.date_debut.startsWith(today)
+      call.date_appel_prevue && call.date_appel_prevue.startsWith(today)
     )
   })
 
@@ -68,11 +53,11 @@ export const useCallsStore = defineStore('calls', () => {
     const patientMap = new Map<number, Call[]>()
     
     calls.value.forEach(call => {
-      if (call.patient_id) {
-        if (!patientMap.has(call.patient_id)) {
-          patientMap.set(call.patient_id, [])
+      if (call.project_patient_id) {
+        if (!patientMap.has(call.project_patient_id)) {
+          patientMap.set(call.project_patient_id, [])
         }
-        patientMap.get(call.patient_id)!.push(call)
+        patientMap.get(call.project_patient_id)!.push(call)
       }
     })
     
@@ -106,35 +91,64 @@ export const useCallsStore = defineStore('calls', () => {
   const fetchCalls = async (params?: any) => {
     try {
       isLoading.value = true
-      const response = await callsService.getAll()
+      console.log('📞 Chargement des appels avec params:', params)
       
-      // Gérer différents formats de réponse
-      let data: Call[] = []
-      if (Array.isArray(response)) {
-        data = response
-      } else if (response && response.data && Array.isArray(response.data)) {
-        data = response.data
-      } else if (response && response.success && response.data && Array.isArray(response.data)) {
-        data = response.data
-      } else {
-        console.warn('Unexpected response format:', response)
-        data = []
-      }
+      const data = await callsService.getAll(params)
+      console.log('✅ Appels chargés:', data.length, 'appels')
       
       calls.value = data
       
       // Séparer les appels en attente
-      pendingCalls.value = data.filter(call => call.statut === 'en_attente')
+      pendingCalls.value = data.filter(call => call.statut === 'pending')
       
       // Historique des appels terminés
-      callHistory.value = data.filter(call => call.statut === 'termine')
+      callHistory.value = data.filter(call => call.statut === 'called')
+      
+      toast.success(`${data.length} appels chargés`)
       
     } catch (error) {
-      console.error('Erreur lors du chargement des appels:', error)
+      console.error('❌ Erreur lors du chargement des appels:', error)
       toast.error('Erreur lors du chargement des appels')
       calls.value = []
       pendingCalls.value = []
       callHistory.value = []
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // Nouvelle méthode pour récupérer les appels avec pagination et filtres avancés
+  const fetchCallsEnhanced = async (params?: any) => {
+    try {
+      isLoading.value = true
+      
+      const queryParams = new URLSearchParams()
+      if (params) {
+        Object.entries(params).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== '') {
+            queryParams.append(key, value.toString())
+          }
+        })
+      }
+      
+      const response = await fetch(`/api/calls?${queryParams}`)
+      
+      if (!response.ok) {
+        throw new Error('Erreur lors de la récupération des appels')
+      }
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        return result
+      } else {
+        throw new Error(result.error || 'Erreur lors de la récupération des appels')
+      }
+      
+    } catch (error) {
+      console.error('Erreur lors du chargement des appels:', error)
+      toast.error('Erreur lors du chargement des appels')
+      throw error
     } finally {
       isLoading.value = false
     }
@@ -405,6 +419,218 @@ export const useCallsStore = defineStore('calls', () => {
     }
   }
 
+  // Mettre à jour le statut d'un appel
+  const updateCallStatus = async (callId: number, callData: any) => {
+    try {
+      const response = await fetch(`/api/calls/${callId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(callData)
+      })
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de la mise à jour')
+      }
+
+      const result = await response.json()
+      
+      if (result.success) {
+        // Mettre à jour l'appel dans la liste locale
+        const callIndex = calls.value.findIndex(c => c.id === callId)
+        if (callIndex !== -1) {
+          calls.value[callIndex] = { ...calls.value[callIndex], ...callData }
+        }
+        
+        toast.success('Statut de l\'appel mis à jour')
+        return result
+      } else {
+        throw new Error(result.message || 'Erreur lors de la mise à jour')
+      }
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du statut:', error)
+      toast.error('Erreur lors de la mise à jour du statut')
+      throw error
+    }
+  }
+
+  // Exporter les appels en CSV
+  const exportCalls = async (filters: any) => {
+    try {
+      const params = new URLSearchParams()
+      
+      if (filters.search) params.append('search', filters.search)
+      if (filters.status) params.append('status', filters.status)
+      if (filters.service) params.append('service', filters.service)
+      if (filters.fromDate) params.append('from_date', filters.fromDate)
+      if (filters.toDate) params.append('to_date', filters.toDate)
+      params.append('export', 'csv')
+
+      const response = await fetch(`/api/calls/export?${params}`)
+      
+      if (!response.ok) {
+        throw new Error('Erreur lors de l\'export')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `appels_${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+
+      toast.success('Export CSV généré avec succès')
+    } catch (error) {
+      console.error('Erreur lors de l\'export CSV:', error)
+      toast.error('Erreur lors de l\'export CSV')
+      throw error
+    }
+  }
+
+  // Exporter les appels en PDF
+  const exportCallsPDF = async (filters: any) => {
+    try {
+      const params = new URLSearchParams()
+      
+      if (filters.search) params.append('search', filters.search)
+      if (filters.status) params.append('status', filters.status)
+      if (filters.service) params.append('service', filters.service)
+      if (filters.fromDate) params.append('from_date', filters.fromDate)
+      if (filters.toDate) params.append('to_date', filters.toDate)
+      params.append('export', 'pdf')
+
+      const response = await fetch(`/api/calls/export?${params}`)
+      
+      if (!response.ok) {
+        throw new Error('Erreur lors de l\'export PDF')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `appels_${new Date().toISOString().split('T')[0]}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+
+      toast.success('Export PDF généré avec succès')
+    } catch (error) {
+      console.error('Erreur lors de l\'export PDF:', error)
+      toast.error('Erreur lors de l\'export PDF')
+      throw error
+    }
+  }
+
+  // Exporter le résumé d'un appel en PDF
+  const exportCallSummaryPDF = async (callId: number) => {
+    try {
+      const response = await fetch(`/api/calls/${callId}/summary/export`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error('Erreur lors de l\'export du résumé')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `resume_appel_${callId}_${new Date().toISOString().split('T')[0]}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+
+      toast.success('Résumé PDF généré avec succès')
+    } catch (error) {
+      console.error('Erreur lors de l\'export du résumé:', error)
+      toast.error('Erreur lors de l\'export du résumé')
+      throw error
+    }
+  }
+
+  // Récupérer les services disponibles
+  const fetchServices = async () => {
+    try {
+      const response = await fetch('/api/calls/services')
+      
+      if (!response.ok) {
+        throw new Error('Erreur lors de la récupération des services')
+      }
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        return result.data
+      } else {
+        throw new Error(result.error || 'Erreur lors de la récupération des services')
+      }
+      
+    } catch (error) {
+      console.error('Erreur lors de la récupération des services:', error)
+      // Ne pas afficher de toast d'erreur pour les services, juste retourner un tableau vide
+      return []
+    }
+  }
+
+  // Récupérer les statistiques des appels
+  const fetchCallStats = async () => {
+    try {
+      const response = await fetch('/api/calls/statistics/overview')
+      
+      if (!response.ok) {
+        throw new Error('Erreur lors de la récupération des statistiques')
+      }
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        return result.data
+      } else {
+        throw new Error(result.error || 'Erreur lors de la récupération des statistiques')
+      }
+      
+    } catch (error) {
+      console.error('Erreur lors de la récupération des statistiques:', error)
+      toast.error('Erreur lors de la récupération des statistiques')
+      return null
+    }
+  }
+
+  // Récupérer les scores détaillés d'un appel
+  const fetchCallScores = async (callId: number) => {
+    try {
+      const response = await fetch(`/api/calls/${callId}/scores`)
+      
+      if (!response.ok) {
+        throw new Error('Erreur lors de la récupération des scores')
+      }
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        return result.data
+      } else {
+        throw new Error(result.error || 'Erreur lors de la récupération des scores')
+      }
+      
+    } catch (error) {
+      console.error('Erreur lors de la récupération des scores:', error)
+      toast.error('Erreur lors de la récupération des scores')
+      return []
+    }
+  }
+
   return {
     // State
     calls,
@@ -423,6 +649,7 @@ export const useCallsStore = defineStore('calls', () => {
 
     // Actions
     fetchCalls,
+    fetchCallsEnhanced,
     startCall,
     endCall,
     identifyPatientByPhone,
@@ -433,6 +660,13 @@ export const useCallsStore = defineStore('calls', () => {
     acceptCall,
     rejectCall,
     getCallById,
-    clearSession
+    clearSession,
+    updateCallStatus,
+    exportCalls,
+    exportCallsPDF,
+    exportCallSummaryPDF,
+    fetchServices,
+    fetchCallStats,
+    fetchCallScores
   }
 }) 

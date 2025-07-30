@@ -7,6 +7,7 @@ import DashboardView from '@/views/DashboardView.vue'
 import PatientsView from '@/views/PatientsView.vue'
 import PatientDetailView from '@/views/PatientDetailView.vue'
 import CallsView from '@/views/CallsView.vue'
+import CallsEnhancedView from '@/views/CallsEnhancedView.vue'
 import AIView from '@/views/AIView.vue'
 import ReportsView from '@/views/ReportsView.vue'
 import AccountSettingsView from '@/views/AccountSettingsView.vue'
@@ -72,6 +73,16 @@ export const routes: RouteRecordRaw[] = [
     meta: { 
       requiresAuth: true,
       title: 'Gestion des appels - HelloJADE',
+      icon: 'PhoneIcon'
+    }
+  },
+  {
+    path: '/calls-enhanced',
+    name: 'CallsEnhanced',
+    component: CallsEnhancedView,
+    meta: { 
+      requiresAuth: true,
+      title: 'Gestion des appels JADE - HelloJADE',
       icon: 'PhoneIcon'
     }
   },

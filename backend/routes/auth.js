@@ -49,7 +49,7 @@ router.post('/login', async (req, res) => {
           const searchOptions = {
             scope: 'sub',
             filter: `(&(objectClass=user)(userPrincipalName=${username}))`,
-            attributes: ['cn', 'mail', 'memberOf', 'userPrincipalName', 'sAMAccountName']
+            attributes: ['cn', 'mail', 'memberOf', 'userPrincipalName', 'sAMAccountName', 'name']
           }
 
           client.search(LDAP_CONFIG.userSearchBase, searchOptions, (err, res) => {
@@ -63,21 +63,25 @@ router.post('/login', async (req, res) => {
 
             res.on('searchEntry', (entry) => {
               userFound = true
-              console.log('LDAP Entry:', JSON.stringify(entry.object, null, 2))
+              console.log('LDAP Entry trouvée')
               
-              // Vérifier que entry.object existe
-              if (!entry.object) {
-                console.error('entry.object est undefined')
-                return
-              }
+              // Gérer la structure LDAP de manière sécurisée
+              const userData = entry.object || entry.attributes || {}
               
               userInfo = {
-                cn: entry.object.cn || entry.object.name || 'Unknown',
-                mail: entry.object.mail || entry.object.userPrincipalName || '',
-                userPrincipalName: entry.object.userPrincipalName || username,
-                sAMAccountName: entry.object.sAMAccountName || entry.object.samAccountName || username.split('@')[0],
-                memberOf: entry.object.memberOf || []
+                cn: userData.cn || userData.name || 'Unknown',
+                mail: userData.mail || userData.userPrincipalName || '',
+                userPrincipalName: userData.userPrincipalName || username,
+                sAMAccountName: userData.sAMAccountName || userData.samAccountName || username.split('@')[0],
+                memberOf: userData.memberOf || []
               }
+              
+              console.log('UserInfo extrait:', {
+                cn: userInfo.cn,
+                upn: userInfo.userPrincipalName,
+                sam: userInfo.sAMAccountName,
+                memberOfCount: userInfo.memberOf.length
+              })
             })
 
             res.on('error', (err) => {
@@ -104,8 +108,10 @@ router.post('/login', async (req, res) => {
     let role = 'user'
     if (userInfo.memberOf) {
       const groups = Array.isArray(userInfo.memberOf) ? userInfo.memberOf : [userInfo.memberOf]
+      console.log('Groupes de l\'utilisateur:', groups)
       if (groups.some(group => group.includes('HelloJADE-Admins'))) {
         role = 'admin'
+        console.log('Utilisateur détecté comme admin')
       }
     }
 

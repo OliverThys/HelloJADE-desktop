@@ -11,8 +11,16 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
-    strictPort: false,
-    cors: true
+    strictPort: true,
+    cors: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '/api')
+      }
+    }
   },
   
   // Configuration de la build

@@ -1,169 +1,224 @@
-# HelloJADE v1.0 - Application Desktop
+# HelloJADE - Gestion des Appels Post-Hospitalisation
 
-Application desktop SaaS pour la gestion post-hospitalisation avec transcription automatique, analyse IA et tableau de bord patient.
+## 🚀 Architecture PostgreSQL + Docker
 
-## 🚀 Fonctionnalités
-
-- **Interface moderne** avec Vue.js 3 et Tailwind CSS
-- **Application native** avec Tauri (plus rapide qu'Electron)
-- **Monitoring complet** avec Grafana et Prometheus
-- **Intelligence artificielle** avec Ollama
-- **Cache performant** avec Redis
-- **Infrastructure Docker** complète
+HelloJADE est une application de gestion des appels post-hospitalisation utilisant :
+- **Backend** : Node.js + Express + PostgreSQL
+- **Frontend** : Vue.js 3 + Tailwind CSS
+- **Base de données** : PostgreSQL (Docker)
+- **Cache** : Redis (Docker)
 
 ## 📋 Prérequis
 
-- **Windows 10/11** (testé sur Windows 10)
-- **Docker Desktop** avec WSL2
-- **Node.js** v18+ 
-- **Rust** v1.70+
-- **Visual Studio Build Tools 2022** avec composants C++
+- Docker et Docker Compose
+- Node.js 18+
+- npm
 
-## 🛠️ Installation
+## 🛠️ Installation et démarrage
 
-### 1. Cloner le repository
+### 1. Cloner le projet
 ```bash
-git clone https://github.com/votre-username/hellojade-desktop.git
-cd hellojade-desktop
+git clone <repository-url>
+cd HelloJADE-desktop
 ```
 
-### 2. Installer les dépendances
+### 2. Démarrer l'environnement complet
+```bash
+cd backend
+npm install
+docker-compose up -d
+node server.js
+```
+
+### 3. Démarrer le frontend (dans un autre terminal)
 ```bash
 cd frontend
 npm install
+npm run dev
 ```
 
-### 3. Lancer l'application
-```bash
-# Depuis la racine du projet
-.\launch-tauri.ps1
-```
+### 4. Accéder à l'application
+- **Frontend** : http://localhost:5173
+- **Page Appels** : http://localhost:5173/calls
+- **API Backend** : http://localhost:8000/api
+- **PostgreSQL** : localhost:5432
 
-## 🎯 Utilisation
+## 🗄️ Structure de la base de données
 
-### Scripts disponibles
+### Tables principales
+- `patients_sync` : Patients synchronisés depuis Oracle
+- `hospitalisations_sync` : Hospitalisations synchronisées
+- `calls` : Appels post-hospitalisation
+- `call_history` : Historique des modifications
+- `scores` : Scores détaillés des appels
+- `call_metadata` : Métadonnées des appels
 
-- **`launch-tauri.ps1`** - Lance l'application en mode production
-- **`launch-tauri-dev.ps1`** - Lance l'application en mode développement
-- **`start-web.ps1`** - Lance uniquement l'interface web
+### Données de test incluses
+- 5 patients de test
+- 5 hospitalisations de test
+- 5 appels de test (avec différents statuts)
 
-### Interfaces disponibles
+## 📊 Fonctionnalités de la page Appels
 
-- **Application Desktop** : HelloJADE.exe (lancée automatiquement)
-- **Grafana** (Monitoring) : http://localhost:3000
-  - Username: `admin`
-  - Password: `hellojade123`
-- **Prometheus** (Métriques) : http://localhost:9090
-- **Ollama** (IA) : http://localhost:11434
-- **Redis** (Cache) : localhost:6379
+### Filtres disponibles
+- **Recherche globale** : Nom, prénom, numéro patient
+- **Filtre par date** : Intervalle de dates d'appel
+- **Filtre par statut** : À appeler, Appelé, Échec
 
-## 🏗️ Architecture
+### Actions disponibles
+- **Sync Oracle** : Synchronisation avec la base hospitalière
+- **Export CSV** : Export des données filtrées
+- **Voir résumé** : Modal détaillé de l'appel
+- **Export PDF** : Export du résumé en PDF
 
-```
-HelloJADE/
-├── frontend/                 # Application Vue.js + Tauri
-│   ├── src/                 # Code source Vue.js
-│   ├── src-tauri/           # Configuration Tauri/Rust
-│   └── package.json
-├── backend/                 # API Python (optionnel)
-├── infrastructure/          # Configuration Docker
-│   ├── docker-compose.yml
-│   ├── grafana/
-│   ├── prometheus/
-│   └── redis/
-└── scripts/                 # Scripts d'installation
-```
+### Colonnes du tableau
+- **Patient** : Nom, prénom, numéro, date naissance
+- **Contact** : Téléphone
+- **Hospitalisation** : Site, service, médecin, date sortie
+- **Appel** : Date prévue/réelle, durée, statut
+- **Résultats** : Score, résumé
+- **Actions** : Voir résumé, export PDF
 
 ## 🔧 Configuration
 
 ### Variables d'environnement
-Copiez `env.example` vers `.env` et configurez :
 ```bash
-# Backend API
-BACKEND_URL=http://localhost:5000
+# Backend
+PORT=8000
+NODE_ENV=development
 
-# Base de données
-DATABASE_URL=postgresql://user:pass@localhost:5432/hellojade
-
-# Services externes
-OLLAMA_URL=http://localhost:11434
-REDIS_URL=redis://localhost:6379
+# PostgreSQL
+POSTGRES_DB=hellojade
+POSTGRES_USER=hellojade_user
+POSTGRES_PASSWORD=hellojade_password
 ```
 
-### Modèles IA
-Installez des modèles dans Ollama :
-```bash
-# Modèle de transcription
-ollama pull whisper
+### Docker Compose
+```yaml
+services:
+  postgres:
+    image: postgres:15
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: hellojade
+      POSTGRES_USER: hellojade_user
+      POSTGRES_PASSWORD: hellojade_password
 
-# Modèle d'analyse
-ollama pull llama2
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
 ```
 
-## 🐛 Dépannage
+## 📡 API Endpoints
 
-### Erreur "link.exe not found"
-Installez Visual Studio Build Tools 2022 avec les composants C++ :
+### Appels
+- `GET /api/calls` - Liste des appels avec filtres
+- `GET /api/calls/:id` - Détails d'un appel
+- `POST /api/calls` - Créer un appel
+- `PUT /api/calls/:id` - Modifier un appel
+- `GET /api/calls/statistics/overview` - Statistiques
+- `POST /api/calls/sync-oracle` - Sync Oracle
+- `GET /api/calls/export/csv` - Export CSV
+
+### Santé
+- `GET /api/health` - Statut de l'API
+
+## 🎯 Workflow d'appel
+
+1. **Synchronisation Oracle** : Récupération des nouveaux patients
+2. **Création d'appels** : Génération automatique des appels prévus
+3. **Exécution d'appels** : Via Asterisk + Whisper + Rasa
+4. **Analyse** : Scoring via Ollama
+5. **Stockage** : Sauvegarde en PostgreSQL
+6. **Interface** : Visualisation et gestion via Vue.js
+
+## 🚀 Démarrage rapide
+
+### Script automatique
 ```bash
-winget install Microsoft.VisualStudio.2022.BuildTools --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+cd backend
+node start-hellojade.js
 ```
 
-### Services Docker non démarrés
+Ce script démarre automatiquement :
+- Docker Compose (PostgreSQL + Redis)
+- Serveur backend
+- Frontend (si configuré)
+
+## 🔍 Dépannage
+
+### Problèmes courants
+
+**PostgreSQL ne démarre pas**
 ```bash
-# Redémarrer Docker Desktop
-# Puis relancer
-.\launch-tauri.ps1
+docker-compose down
+docker-compose up -d
 ```
 
-### Problème de permissions
-Exécutez PowerShell en tant qu'administrateur pour l'installation des outils.
-
-## 📝 Développement
-
-### Mode développement
+**Erreur de connexion à la base**
 ```bash
-.\launch-tauri-dev.ps1
+# Vérifier les logs
+docker-compose logs postgres
+
+# Redémarrer le service
+docker-compose restart postgres
 ```
 
-### Modifier l'interface
-- Code Vue.js : `frontend/src/`
-- Styles : `frontend/src/assets/`
-- Configuration Tauri : `frontend/src-tauri/tauri.conf.json`
+**Frontend ne se connecte pas à l'API**
+- Vérifier que le serveur backend tourne sur le port 8000
+- Vérifier les CORS dans `server.js`
 
-### Construire pour la production
-```bash
-cd frontend
-npm run tauri:build
+## 📝 Format des données
+
+### Structure d'un appel
+```json
+{
+  "project_call_id": 1,
+  "project_patient_id": 1,
+  "statut": "complete",
+  "date_appel_prevue": "2025-01-30T14:00:00",
+  "date_appel_reelle": "2025-01-30T14:30:22",
+  "duree_secondes": 185,
+  "score": 85,
+  "resume_appel": "Patient en bonne forme...",
+  "dialogue_result": {
+    "douleur_niveau": 3,
+    "traitement_suivi": true,
+    "moral_niveau": 7
+  }
+}
 ```
 
-## 🤝 Contribution
+## 🔄 Synchronisation Oracle
 
-1. Fork le projet
-2. Créer une branche feature (`git checkout -b feature/AmazingFeature`)
-3. Commit les changements (`git commit -m 'Add AmazingFeature'`)
-4. Push vers la branche (`git push origin feature/AmazingFeature`)
-5. Ouvrir une Pull Request
+La synchronisation avec Oracle est simulée pour le moment. Pour l'intégrer :
 
-## 📄 Licence
+1. Modifier `services/postgresql.js`
+2. Ajouter la connexion Oracle
+3. Implémenter la logique de sync dans `syncFromOracle()`
 
-Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
+## 📈 Performance
 
-## 🙏 Remerciements
+- **PostgreSQL** : Optimisé pour milliers d'appels/jour
+- **Index** : Créés sur les colonnes fréquemment utilisées
+- **Cache Redis** : Pour les données temps réel
+- **Virtual Scroll** : Pour les gros tableaux
 
-- [Tauri](https://tauri.app/) - Framework pour applications desktop
-- [Vue.js](https://vuejs.org/) - Framework JavaScript
-- [Tailwind CSS](https://tailwindcss.com/) - Framework CSS
-- [Docker](https://www.docker.com/) - Conteneurisation
-- [Grafana](https://grafana.com/) - Monitoring
-- [Ollama](https://ollama.ai/) - Modèles IA locaux
+## 🛡️ Sécurité
+
+- **CORS** : Configuré pour le développement
+- **Validation** : Des données d'entrée
+- **Isolation** : Base PostgreSQL séparée de l'hôpital
 
 ## 📞 Support
 
 Pour toute question ou problème :
-- Ouvrir une issue sur GitHub
-- Consulter la documentation dans `docs/`
-- Vérifier les logs dans `logs/`
+1. Vérifier les logs Docker : `docker-compose logs`
+2. Vérifier les logs backend : `node server.js`
+3. Vérifier les logs frontend : `npm run dev`
 
 ---
 
-**HelloJADE v1.0** - Application de gestion post-hospitalisation moderne et performante. 
+**HelloJADE** - Gestion intelligente des appels post-hospitalisation 

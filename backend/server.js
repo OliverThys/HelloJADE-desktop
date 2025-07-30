@@ -1,130 +1,65 @@
+// Charger les variables d'environnement
+require('dotenv').config({ path: './config.env' })
+
 const express = require('express')
 const cors = require('cors')
-const helmet = require('helmet')
-const morgan = require('morgan')
-const { initialize, closePool } = require('./database')
+const path = require('path')
+const callsRoutes = require('./routes/calls')
+const patientsRoutes = require('./routes/patients')
+const authRoutes = require('./routes/auth')
 
 const app = express()
 const PORT = process.env.PORT || 8000
 
-// Middleware de sécurité
-app.use(helmet())
-
-// Middleware CORS
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-  credentials: true
-}))
-
-// Middleware de logging
-app.use(morgan('combined'))
-
-// Middleware pour parser le JSON
+// Middleware
+app.use(cors())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-// Routes
-app.use('/api/auth', require('./routes/auth'))
-app.use('/api/calls', require('./routes/calls'))
-app.use('/api/patients', require('./routes/patients'))
-app.use('/api/dashboard', require('./routes/dashboard'))
+// Routes API
+app.use('/api/auth', authRoutes)
+app.use('/api/calls', callsRoutes)
+app.use('/api/patients', patientsRoutes)
 
-// Route de santé
+// Route de test
 app.get('/api/health', (req, res) => {
   res.json({
     success: true,
     message: 'HelloJADE API - Backend opérationnel',
     timestamp: new Date().toISOString(),
-    database: 'Oracle connecté'
+    database: 'PostgreSQL'
   })
 })
 
-// Route racine
-app.get('/', (req, res) => {
-  res.json({
-    success: true,
-    message: 'HelloJADE Backend API',
-    version: '1.0.0',
-    endpoints: {
-      health: '/api/health',
-      calls: '/api/calls',
-      patients: '/api/patients',
-      dashboard: '/api/dashboard'
-    }
-  })
+// Servir les fichiers statiques du frontend (pour le développement)
+app.use(express.static(path.join(__dirname, '../frontend/dist')))
+
+// Route catch-all pour SPA
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/dist/index.html'))
 })
 
-// Gestion des erreurs 404
-app.use('*', (req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route non trouvée'
-  })
-})
-
-// Gestion globale des erreurs
-app.use((err, req, res, next) => {
-  console.error('❌ Erreur serveur:', err)
-  console.error('🔍 Stack trace:', err.stack)
-  console.error('📝 URL:', req.url)
-  console.error('📝 Méthode:', req.method)
-  console.error('📝 Headers:', req.headers)
-  
+// Gestion des erreurs
+app.use((error, req, res, next) => {
+  console.error('❌ Erreur serveur:', error)
   res.status(500).json({
     success: false,
-    message: 'Erreur interne du serveur',
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Une erreur est survenue',
-    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    error: 'Erreur interne du serveur',
+    details: error.message
   })
 })
 
-// Initialiser la base de données et démarrer le serveur
-async function startServer() {
-  try {
-    console.log('🔄 Démarrage du serveur HelloJADE...')
-    
-    // Initialiser la connexion Oracle
-    console.log('🗄️ Initialisation de la base de données Oracle...')
-    await initialize()
-    console.log('✅ Base de données Oracle initialisée avec succès')
-    
-    // Démarrer le serveur
-    app.listen(PORT, () => {
-      console.log(`🚀 Serveur HelloJADE démarré sur le port ${PORT}`)
-      console.log(`📊 API disponible sur http://localhost:${PORT}`)
-      console.log(`🔗 Frontend attendu sur ${process.env.CORS_ORIGIN || 'http://localhost:5173'}`)
-      console.log(`\n📋 Endpoints disponibles:`)
-      console.log(`   • GET  /api/health - Santé du serveur`)
-      console.log(`   • GET  /api/patients - Liste des patients`)
-      console.log(`   • GET  /api/patients/:id - Détails d'un patient`)
-      console.log(`   • GET  /api/patients/search/phone/:phone - Recherche par téléphone`)
-      console.log(`   • GET  /api/patients/:id/hospitalisations - Hospitalisations d'un patient`)
-      console.log(`   • GET  /api/patients/:id/consultations - Consultations d'un patient`)
-      console.log(`   • GET  /api/patients/:id/transcriptions - Transcriptions d'un patient`)
-      console.log(`   • GET  /api/patients/:id/analyses - Analyses IA d'un patient`)
-      console.log(`   • GET  /api/dashboard/stats - Statistiques générales`)
-      console.log(`   • GET  /api/dashboard/recent-activity - Activité récente`)
-      console.log(`   • *    /api/calls - Routes téléphonie existantes`)
-    })
-  } catch (error) {
-    console.error('❌ Erreur lors du démarrage du serveur:', error)
-    console.error('🔍 Stack trace:', error.stack)
-    process.exit(1)
-  }
-}
+// Démarrage du serveur
+app.listen(PORT, () => {
+  console.log(`🚀 Serveur HelloJADE démarré sur le port ${PORT}`)
+  console.log(`📊 API disponible sur http://localhost:${PORT}/api`)
+  console.log(`🌐 Frontend disponible sur http://localhost:${PORT}`)
+})
 
 // Gestion de l'arrêt propre
-process.on('SIGINT', async () => {
+process.on('SIGINT', () => {
   console.log('\n🛑 Arrêt du serveur...')
-  await closePool()
   process.exit(0)
 })
 
-process.on('SIGTERM', async () => {
-  console.log('\n🛑 Arrêt du serveur...')
-  await closePool()
-  process.exit(0)
-})
-
-// Démarrer le serveur
-startServer()
+module.exports = app

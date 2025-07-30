@@ -158,20 +158,27 @@ export interface Utilisateur {
 
 export interface Call {
   id: number
-  patient_number: string
-  patient_last_name: string
-  patient_first_name: string
-  birth_date: string
-  phone: string
-  hospital_site: string
-  discharge_date: string
-  scheduled_call: string
-  status: string
-  doctor: string
-  service: string
-  actual_call: string
-  duration: number
-  score: number
+  project_patient_id: number
+  project_hospitalisation_id: number
+  statut: string
+  date_appel_prevue: string
+  date_appel_reelle: string | null
+  duree_secondes: number | null
+  score: number | null
+  resume_appel: string | null
+  dialogue_result: any | null
+  nombre_tentatives: number
+  date_creation: string
+  date_modification: string
+  numero_patient: string
+  nom: string
+  prenom: string
+  date_naissance: string
+  telephone: string
+  service: string | null
+  medecin: string | null
+  site: string | null
+  date_sortie: string
 }
 
 export interface DashboardStats {
@@ -316,9 +323,32 @@ export const dashboardService = {
 
 export const callsService = {
   // Récupérer tous les appels
-  getAll: async (): Promise<Call[]> => {
-    const response = await api.get('/api/calls')
-    return response.data.data.items || response.data
+  getAll: async (params?: any): Promise<Call[]> => {
+    try {
+      const response = await api.get('/api/calls', { params })
+      console.log('🔍 API Calls Response:', response.data)
+      
+      // Gérer différents formats de réponse
+      if (response.data && response.data.success && response.data.data && response.data.data.items) {
+        console.log('✅ Format 1: response.data.data.items')
+        return response.data.data.items
+      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        console.log('✅ Format 2: response.data.data')
+        return response.data.data
+      } else if (response.data && Array.isArray(response.data)) {
+        console.log('✅ Format 3: response.data')
+        return response.data
+      } else if (response.data && response.data.items && Array.isArray(response.data.items)) {
+        console.log('✅ Format 4: response.data.items')
+        return response.data.items
+      } else {
+        console.warn('❌ Format de réponse inattendu:', response.data)
+        return []
+      }
+    } catch (error) {
+      console.error('❌ Erreur dans callsService.getAll:', error)
+      throw error
+    }
   },
 
   // Récupérer un appel par ID

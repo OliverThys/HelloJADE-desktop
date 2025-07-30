@@ -1,0 +1,63 @@
+# Configuration des bases de données HelloJADE
+# Séparation entre base hospitalière (source) et base projet (destination)
+
+# Base de données hospitalière (source - lecture seule)
+hospital_db:
+  type: 'oracle'
+  host: '192.168.1.100'
+  port: 1521
+  service: 'XEPDB1'
+  user: 'hellojade'
+  password: '${HOSPITAL_DB_PASSWORD}'
+  schema: 'HELLOJADE'
+  tables:
+    patients: 'PATIENTS'
+    hospitalisations: 'HOSPITALISATIONS'
+  read_only: true
+  sync_interval: 3600 # 1 heure
+
+# Base de données projet HelloJADE (destination - lecture/écriture)
+project_db:
+  type: 'oracle'
+  host: '192.168.1.100'
+  port: 1521
+  service: 'XEPDB1'
+  user: 'hellojade_project'
+  password: '${PROJECT_DB_PASSWORD}'
+  schema: 'HELLOJADE_PROJECT'
+  tables:
+    patients_sync: 'PATIENTS_SYNC'
+    hospitalisations_sync: 'HOSPITALISATIONS_SYNC'
+    calls: 'CALLS'
+    call_history: 'CALL_HISTORY'
+    scores: 'SCORES'
+    call_metadata: 'CALL_METADATA'
+  read_write: true
+
+# Configuration de synchronisation
+sync:
+  enabled: true
+  batch_size: 100
+  max_retries: 3
+  retry_delay: 5000 # 5 secondes
+  log_level: 'info'
+  
+# Mapping des champs entre les bases
+field_mapping:
+  patients:
+    hospital_id: 'PATIENT_ID'
+    project_id: 'PROJECT_PATIENT_ID'
+    number: 'NUMERO_PATIENT'
+    last_name: 'NOM'
+    first_name: 'PRENOM'
+    birth_date: 'DATE_NAISSANCE'
+    phone: 'TELEPHONE'
+    
+  hospitalisations:
+    hospital_id: 'HOSPITALISATION_ID'
+    project_id: 'PROJECT_HOSPITALISATION_ID'
+    patient_id: 'PATIENT_ID'
+    service: 'SERVICE'
+    doctor: 'MEDECIN'
+    discharge_date: 'DATE_SORTIE'
+    status: 'STATUT' 

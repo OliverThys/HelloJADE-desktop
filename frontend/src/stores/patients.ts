@@ -361,12 +361,34 @@ export const usePatientsStore = defineStore('patients', () => {
   }
 
   // Méthodes de gestion de la sélection
+  const startSelectionMode = () => {
+    isSelectionMode.value = true
+    selectedPatients.value.clear()
+    console.log('🔄 Mode sélection activé')
+  }
+
+  const stopSelectionMode = () => {
+    isSelectionMode.value = false
+    selectedPatients.value.clear()
+    console.log('🔄 Mode sélection désactivé')
+  }
+
   const toggleSelectionMode = () => {
     isSelectionMode.value = !isSelectionMode.value
     if (!isSelectionMode.value) {
       selectedPatients.value.clear()
     }
     console.log('🔄 Mode sélection:', isSelectionMode.value ? 'activé' : 'désactivé')
+  }
+
+  const selectPatient = (patient: Patient) => {
+    selectedPatients.value.add(patient.id)
+    console.log('✅ Patient sélectionné:', patient.id)
+  }
+
+  const deselectPatient = (patient: Patient) => {
+    selectedPatients.value.delete(patient.id)
+    console.log('❌ Patient désélectionné:', patient.id)
   }
 
   const togglePatientSelection = (patientId: number) => {
@@ -434,7 +456,11 @@ export const usePatientsStore = defineStore('patients', () => {
     setSelectedStatus,
     clearFilters,
     clearCurrentPatient,
+    startSelectionMode,
+    stopSelectionMode,
     toggleSelectionMode,
+    selectPatient,
+    deselectPatient,
     togglePatientSelection,
     selectAllPatients,
     deselectAllPatients,
