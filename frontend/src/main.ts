@@ -35,11 +35,14 @@ const toastOptions = {
   rtl: false
 }
 
+// Plugin de persistance pour Pinia
+const pinia = createPinia()
+
 // Création de l'application
 const app = createApp(App)
 
 // Installation des plugins
-app.use(createPinia())
+app.use(pinia)
 app.use(router)
 app.use(i18n)
 app.use(Toast, toastOptions)

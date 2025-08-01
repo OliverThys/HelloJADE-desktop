@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # Service Asterisk pour la téléphonie (version optimisée)
+  asterisk:
+    image: andrius/asterisk:latest
+    container_name: hellojade-asterisk
+    restart: unless-stopped
+    ports:
+      - "5060:5060/udp"     # SIP UDP
+      - "5060:5060/tcp"     # SIP TCP  
+      - "5038:5038"         # AMI (Asterisk Manager Interface)
+      - "10000-10100:10000-10100/udp"  # RTP ports
+    volumes:
+      - ./asterisk/etc/asterisk:/etc/asterisk:ro
+      - ./asterisk/var/lib/asterisk:/var/lib/asterisk
+      - ./asterisk/var/spool/asterisk:/var/spool/asterisk
+      - ./asterisk/logs:/var/log/asterisk
+    environment:
+      - ASTERISK_UID=1000
+      - ASTERISK_GID=1000
+    networks:
+      - hellojade-network
+    healthcheck:
+      test: ["CMD", "asterisk", "-rx", "core show version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    stop_grace_period: 30s
+    stop_signal: SIGTERM
+
+  # Service PostgreSQL pour HelloJADE
+  postgres:
+    image: postgres:15-alpine
+    container_name: hellojade-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: hellojade
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - hellojade-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Service Redis pour le cache
+  redis:
+    image: redis:7-alpine
+    container_name: hellojade-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - hellojade-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  hellojade-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:

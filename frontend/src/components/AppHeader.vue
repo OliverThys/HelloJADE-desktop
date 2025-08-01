@@ -169,7 +169,8 @@ import {
   ArrowRightOnRectangleIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  CircleStackIcon
 } from '@heroicons/vue/24/outline'
 import { useUserStore } from '@/stores/user'
 import { useAuthStore } from '@/stores/auth'
@@ -201,7 +202,8 @@ const notificationCount = computed(() => notifications.value.length)
 const navigation = [
   { name: 'Tableau de bord', href: '/', icon: 'HomeIcon' },
   { name: 'Patients', href: '/patients', icon: 'UsersIcon' },
-  { name: 'Appels', href: '/calls', icon: 'PhoneIcon' }
+  { name: 'Appels', href: '/calls', icon: 'PhoneIcon' },
+  { name: 'Monitoring', href: '/monitoring', icon: 'CircleStackIcon' }
 ]
 
 const userAvatar = computed(() => {

@@ -1,0 +1,212 @@
+# Configuration HelloJADE
+# Fichier de configuration principal du projet
+
+# Configuration générale de l'application
+app:
+  name: "HelloJADE"
+  version: "2.0.0"
+  environment: "development"  # development, staging, production
+  port: 8000
+  host: "0.0.0.0"
+  debug: true
+  timezone: "Europe/Paris"
+  language: "fr"
+
+# Configuration de l'authentification Active Directory
+authentication:
+  active_directory:
+    enabled: true
+    server: "hellojade.local"
+    port: 389
+    base_dn: "DC=hellojade,DC=local"
+    bind_dn: "CN=Administrator,CN=Users,DC=hellojade,DC=local"
+    bind_password: "MotDePasse123!"
+    user_search_base: "CN=Users,DC=hellojade,DC=local"
+    timeout: 5000
+    retries: 3
+    ssl: false
+    tls: false
+
+# Configuration JWT
+jwt:
+  secret: "votre_secret_jwt_tres_securise"
+  secret_key: "votre_secret_jwt_tres_securise"
+  expires_in: "24h"
+  refresh_expires_in: "7d"
+  algorithm: "HS256"
+
+# Configuration des bases de données
+databases:
+  # Base de données HelloJADE (PostgreSQL)
+  hellojade:
+    type: "postgresql"
+    host: "localhost"
+    port: 5432
+    database: "hellojade"
+    username: "postgres"
+    password: "password"
+    ssl: false
+    pool:
+      min: 2
+      max: 10
+      idle_timeout: 30000
+      acquire_timeout: 60000
+
+  # Base de données Hôpital (Oracle)
+  hospital:
+    type: "oracle"
+    host: "localhost"
+    port: 1521
+    service_name: "XE"
+    username: "system"
+    password: "oracle"
+    connection_string: "localhost:1521/XE"
+    pool:
+      min: 1
+      max: 5
+      increment: 1
+
+# Configuration du monitoring
+monitoring:
+  enabled: true
+  interval: 30000  # 30 secondes
+  metrics_interval: 5000  # 5 secondes
+  services:
+    active_directory:
+      enabled: true
+      timeout: 5000
+    asterisk:
+      enabled: false  # À activer quand Asterisk sera configuré
+      host: "localhost"
+      port: 5038
+      username: "monitoring"
+      password: "monitoring123"
+      timeout: 5000
+    database_hellojade:
+      enabled: true
+      timeout: 5000
+    database_hospital:
+      enabled: true
+      timeout: 5000
+
+# Configuration des logs
+logging:
+  level: "info"  # debug, info, warn, error
+  file: "logs/hellojade.log"
+  max_size: "10m"
+  max_files: 5
+  console: true
+  format: "json"
+
+# Configuration de la sécurité
+security:
+  cors:
+    enabled: true
+    origin: ["http://localhost:3000", "http://localhost:5173"]
+    credentials: true
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    headers: ["Content-Type", "Authorization"]
+  
+  rate_limiting:
+    enabled: true
+    window_ms: 900000  # 15 minutes
+    max_requests: 100
+  
+  helmet:
+    enabled: true
+    content_security_policy: true
+    hsts: true
+    no_cache: true
+
+# Configuration des emails (pour notifications futures)
+email:
+  enabled: false
+  provider: "smtp"  # smtp, sendgrid, mailgun
+  host: "smtp.gmail.com"
+  port: 587
+  secure: false
+  username: ""
+  password: ""
+  from: "noreply@hellojade.com"
+
+# Configuration des notifications
+notifications:
+  enabled: true
+  types:
+    email: false
+    push: false
+    sms: false
+    in_app: true
+
+# Configuration des exports
+export:
+  formats: ["csv", "xlsx", "pdf"]
+  max_records: 10000
+  timeout: 300000  # 5 minutes
+
+# Configuration des appels (pour intégration future)
+calls:
+  enabled: false
+  provider: "asterisk"  # asterisk, twilio, etc.
+  asterisk:
+    host: "localhost"
+    port: 5038
+    username: "hellojade"
+    password: "hellojade123"
+    context: "hellojade"
+    extension: "100"
+
+# Configuration du cache
+cache:
+  enabled: true
+  type: "redis"  # redis, memory
+  redis:
+    host: "localhost"
+    port: 6379
+    password: ""
+    database: 0
+    ttl: 3600  # 1 heure
+
+# Configuration des uploads
+uploads:
+  enabled: true
+  directory: "uploads"
+  max_size: "10mb"
+  allowed_types: ["jpg", "jpeg", "png", "pdf", "doc", "docx"]
+  temp_directory: "temp"
+
+# Configuration des tests
+testing:
+  enabled: true
+  database:
+    type: "sqlite"
+    file: "test.db"
+  coverage:
+    enabled: true
+    threshold: 80
+
+# Configuration du développement
+development:
+  hot_reload: true
+  auto_restart: true
+  debug_port: 9229
+  source_maps: true
+
+# Configuration de la production
+production:
+  compression: true
+  minification: true
+  caching: true
+  monitoring: true
+  backup:
+    enabled: true
+    schedule: "0 2 * * *"  # Tous les jours à 2h du matin
+    retention: 30  # jours
+
+# Configuration des métadonnées
+metadata:
+  author: "Oliver Thys"
+  description: "Système de gestion hospitalière HelloJADE"
+  keywords: ["hospital", "healthcare", "management", "patients"]
+  license: "MIT"
+  repository: "https://github.com/OliverThys/HelloJADE-desktop" 

@@ -1,0 +1,14 @@
+services:
+  asterisk:
+    image: asterisk/asterisk:20-latest
+    container_name: hellojade-asterisk
+    ports:
+      - "5038:5038"
+      - "5060:5060/udp"
+      - "5060:5060/tcp"
+    volumes:
+      - ./asterisk/etc/asterisk:/etc/asterisk:ro
+    environment:
+      - ASTERISK_UID=1000
+      - ASTERISK_GID=1000
+    restart: unless-stopped 

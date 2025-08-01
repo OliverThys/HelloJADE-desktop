@@ -120,8 +120,8 @@ export const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/admin/monitoring',
-    name: 'AdminMonitoring',
+    path: '/monitoring',
+    name: 'Monitoring',
     component: AdminMonitoringView,
     meta: { 
       requiresAuth: true,

@@ -3,6 +3,7 @@ const router = express.Router()
 const ldap = require('ldapjs')
 const { Pool } = require('pg')
 const oracledb = require('oracledb')
+const { checkAsterisk } = require('./monitoring-asterisk')
 
 // Configuration depuis les variables d'environnement
 require('dotenv').config({ path: './config.env' })
@@ -27,17 +28,9 @@ const POSTGRES_CONFIG = {
 
 // Configuration Oracle (Hôpital)
 const ORACLE_CONFIG = {
-  user: process.env.ORACLE_USER || 'system',
-  password: process.env.ORACLE_PASSWORD || 'oracle',
-  connectString: process.env.ORACLE_CONNECTION_STRING || 'localhost:1521/XE'
-}
-
-// Configuration Asterisk (simulation)
-const ASTERISK_CONFIG = {
-  host: process.env.ASTERISK_HOST || 'localhost',
-  port: process.env.ASTERISK_PORT || 5038,
-  username: process.env.ASTERISK_USERNAME || 'admin',
-  password: process.env.ASTERISK_PASSWORD || 'password'
+  user: process.env.ORACLE_USER || 'SIMULATIONHOPITAL',
+  password: process.env.ORACLE_PASSWORD || 'Hospital2024',
+  connectString: process.env.ORACLE_CONNECTION_STRING || 'localhost:1521/XEPDB1'
 }
 
 // Fonction utilitaire pour mesurer le temps de réponse
@@ -144,55 +137,96 @@ const checkHospitalDatabase = async () => {
   let connection
   
   try {
+    console.log('🔍 Monitoring Oracle: Tentative de connexion à', ORACLE_CONFIG.connectString)
     connection = await oracledb.getConnection(ORACLE_CONFIG)
-    const result = await connection.execute('SELECT SYSDATE FROM DUAL')
+    console.log('✅ Monitoring Oracle: Connexion établie')
+    
+    // Vérification de base
+    const sysdateResult = await connection.execute('SELECT SYSDATE FROM DUAL')
+    console.log('✅ Monitoring Oracle: SYSDATE récupéré')
+    
+    // Vérification des tables principales de la simulation hôpital
+    const tablesToCheck = [
+      'PATIENTS',
+      'MEDECINS', 
+      'SERVICES',
+      'CHAMBRES',
+      'HOSPITALISATIONS',
+      'RENDEZ_VOUS'
+    ]
+    
+    const tableStats = {}
+    let totalRecords = 0
+    
+    for (const tableName of tablesToCheck) {
+      try {
+        const result = await connection.execute(`SELECT COUNT(*) as count FROM SIMULATIONHOPITAL.${tableName}`)
+        const count = result.rows[0][0]
+        tableStats[tableName] = count
+        totalRecords += count
+        console.log(`✅ Monitoring Oracle: Table ${tableName} - ${count} enregistrements`)
+      } catch (error) {
+        console.warn(`⚠️ Monitoring Oracle: Impossible de compter les enregistrements de ${tableName}:`, error.message)
+        tableStats[tableName] = 0
+      }
+    }
+    
+    // Vérification des chambres occupées
+    let occupiedRooms = 0
+    try {
+      const occupiedResult = await connection.execute(
+        'SELECT COUNT(*) as count FROM SIMULATIONHOPITAL.CHAMBRES WHERE OCCUPEE = \'Y\''
+      )
+      occupiedRooms = occupiedResult.rows[0][0]
+      console.log(`✅ Monitoring Oracle: ${occupiedRooms} chambres occupées`)
+    } catch (error) {
+      console.warn('⚠️ Monitoring Oracle: Impossible de compter les chambres occupées:', error.message)
+    }
+    
+    // Vérification des hospitalisations en cours
+    let activeHospitalizations = 0
+    try {
+      const hospResult = await connection.execute(
+        'SELECT COUNT(*) as count FROM SIMULATIONHOPITAL.HOSPITALISATIONS WHERE STATUT = \'En cours\''
+      )
+      activeHospitalizations = hospResult.rows[0][0]
+      console.log(`✅ Monitoring Oracle: ${activeHospitalizations} hospitalisations en cours`)
+    } catch (error) {
+      console.warn('⚠️ Monitoring Oracle: Impossible de compter les hospitalisations:', error.message)
+    }
     
     return {
       status: 'online',
       uptime: 99.9,
-      currentTime: result.rows[0][0],
-      message: 'Base de données Hôpital (Oracle) opérationnelle'
+      currentTime: sysdateResult.rows[0][0],
+      totalRecords,
+      tableStats,
+      occupiedRooms,
+      activeHospitalizations,
+      message: `Base de données Hôpital (Oracle) opérationnelle - ${totalRecords} enregistrements au total`
     }
   } catch (error) {
+    console.error('❌ Monitoring Oracle: Erreur de connexion:', error.message)
     throw new Error(`Erreur de connexion Oracle: ${error.message}`)
   } finally {
     if (connection) {
       try {
         await connection.close()
+        console.log('✅ Monitoring Oracle: Connexion fermée')
       } catch (err) {
-        console.error('Erreur lors de la fermeture de la connexion Oracle:', err)
+        console.error('❌ Monitoring Oracle: Erreur lors de la fermeture de la connexion:', err)
       }
     }
   }
 }
 
-// Vérification Asterisk (simulation)
-const checkAsterisk = async () => {
-  // Simulation d'une vérification Asterisk
-  // En production, vous utiliseriez l'AMI (Asterisk Manager Interface)
-  
-  return new Promise((resolve, reject) => {
-    // Simuler un délai de réponse
-    setTimeout(() => {
-      // Simulation : 95% de chance de succès
-      if (Math.random() > 0.05) {
-        resolve({
-          status: 'online',
-          uptime: 99.8,
-          activeCalls: Math.floor(Math.random() * 10) + 1,
-          message: 'Serveur Asterisk opérationnel'
-        })
-      } else {
-        reject(new Error('Serveur Asterisk non accessible'))
-      }
-    }, Math.random() * 100 + 50) // Délai aléatoire entre 50-150ms
-  })
-}
-
 // Route pour vérifier le statut d'Asterisk
 router.get('/asterisk', async (req, res) => {
   try {
+    console.log('📡 Monitoring Asterisk: Requête reçue')
+    
     const result = await measureResponseTime(checkAsterisk)
+    console.log('📊 Monitoring Asterisk: Résultat:', result)
     
     if (result.success) {
       res.json({
@@ -200,19 +234,23 @@ router.get('/asterisk', async (req, res) => {
         responseTime: result.responseTime,
         uptime: result.uptime,
         activeCalls: result.activeCalls,
+        zadarmaStatus: result.zadarmaStatus,
         message: result.message
       })
     } else {
       res.status(503).json({
         status: 'offline',
         responseTime: result.responseTime,
-        error: result.error
+        error: result.error,
+        message: 'Service Asterisk non disponible'
       })
     }
   } catch (error) {
+    console.error('💥 Monitoring Asterisk: Erreur non gérée:', error.message)
     res.status(500).json({
       status: 'offline',
-      error: error.message
+      error: error.message,
+      message: 'Erreur lors de la vérification d\'Asterisk'
     })
   }
 })
@@ -220,16 +258,24 @@ router.get('/asterisk', async (req, res) => {
 // Route pour vérifier la base de données Hôpital
 router.get('/hospital-db', async (req, res) => {
   try {
+    console.log('📡 Monitoring Oracle: Requête reçue')
     const result = await measureResponseTime(checkHospitalDatabase)
     
     if (result.success) {
+      console.log('✅ Monitoring Oracle: Succès, envoi de la réponse')
       res.json({
         status: result.status,
         responseTime: result.responseTime,
         uptime: result.uptime,
+        currentTime: result.currentTime,
+        totalRecords: result.totalRecords,
+        tableStats: result.tableStats,
+        occupiedRooms: result.occupiedRooms,
+        activeHospitalizations: result.activeHospitalizations,
         message: result.message
       })
     } else {
+      console.log('❌ Monitoring Oracle: Échec, envoi de l\'erreur 503')
       res.status(503).json({
         status: 'offline',
         responseTime: result.responseTime,
@@ -237,6 +283,7 @@ router.get('/hospital-db', async (req, res) => {
       })
     }
   } catch (error) {
+    console.error('💥 Monitoring Oracle: Erreur non gérée:', error.message)
     res.status(500).json({
       status: 'offline',
       error: error.message
@@ -408,4 +455,4 @@ router.get('/system-metrics', async (req, res) => {
   }
 })
 
-module.exports = router 
+module.exports = router

@@ -1,7 +1,16 @@
 <template>
   <div id="app" class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+    <!-- Indicateur de chargement global -->
+    <div v-if="isInitializing" class="fixed inset-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center">
+      <div class="text-center">
+        <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-green-500 mx-auto mb-4"></div>
+        <h2 class="text-xl font-semibold text-slate-800 dark:text-white mb-2">Initialisation...</h2>
+        <p class="text-slate-600 dark:text-slate-400">Chargement de l'application</p>
+      </div>
+    </div>
+
     <!-- Page de connexion -->
-    <div v-if="$route.name === 'Login'" class="min-h-screen">
+    <div v-else-if="$route.name === 'Login'" class="min-h-screen">
       <router-view />
     </div>
     
@@ -69,9 +78,9 @@
           </h3>
           <div class="space-y-2">
             <router-link
-              to="/admin/monitoring"
+              to="/monitoring"
               :class="[
-                $route.path === '/admin/monitoring'
+                $route.path === '/monitoring'
                   ? 'bg-gradient-to-r from-blue-500/10 to-blue-600/10 border-blue-500/50 text-blue-700 dark:text-blue-300 shadow-lg'
                   : 'border-transparent text-slate-600 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white hover:border-slate-300/50',
                 'group flex items-center px-4 py-3 text-sm font-medium border-l-4 transition-all duration-300 rounded-r-xl backdrop-blur-sm hover:scale-105'
@@ -79,7 +88,7 @@
             >
               <CircleStackIcon
                 :class="[
-                  $route.path === '/admin/monitoring' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300',
+                  $route.path === '/monitoring' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300',
                   'mr-4 h-5 w-5 transition-colors duration-300'
                 ]"
               />
@@ -247,7 +256,9 @@
         <!-- Contenu principal -->
         <main class="flex-1 overflow-auto p-6">
           <div class="max-w-7xl mx-auto">
-            <router-view />
+            <ErrorBoundary>
+              <router-view />
+            </ErrorBoundary>
           </div>
         </main>
       </div>
@@ -256,7 +267,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 import {
@@ -280,18 +291,22 @@ import {
   ServerIcon,
   CircleStackIcon
 } from '@heroicons/vue/24/outline'
-import { useAuthStore } from '@/stores/auth'
-import { useUserStore } from '@/stores/user'
+import { useAuthStore, useUserStore, usePatientsStore, useCallsStore, useMonitoringStore } from '@/stores'
 import { setupRouterGuards } from '@/router'
+import ErrorBoundary from '@/components/ErrorBoundary.vue'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const userStore = useUserStore()
+const patientsStore = usePatientsStore()
+const callsStore = useCallsStore()
+const monitoringStore = useMonitoringStore()
 
 const showNotifications = ref(false)
 const showUserMenu = ref(false)
 const isDark = ref(false)
+const isInitializing = ref(true)
 
 const notifications = ref([
   {
@@ -405,8 +420,57 @@ const logout = async () => {
   }
 }
 
+// Initialisation globale de l'application
+const initializeApp = async () => {
+  try {
+    console.log('🚀 Initialisation de l\'application...')
+    isInitializing.value = true
+    
+    // Vérifier l'authentification
+    const isAuthenticated = await authStore.checkAuth()
+    
+    if (isAuthenticated) {
+      console.log('✅ Utilisateur authentifié, initialisation des stores...')
+      
+      // Initialiser les stores de données
+      await Promise.all([
+        patientsStore.initialize(),
+        callsStore.initialize(),
+        monitoringStore.initialize()
+      ])
+      
+      console.log('✅ Application initialisée avec succès')
+    } else {
+      console.log('❌ Utilisateur non authentifié')
+    }
+    
+  } catch (error) {
+    console.error('❌ Erreur lors de l\'initialisation:', error)
+  } finally {
+    isInitializing.value = false
+  }
+}
+
+// Gestionnaire d'événements pour la persistance
+const handleBeforeUnload = () => {
+  console.log('💾 Sauvegarde de l\'état avant fermeture...')
+  // Les stores sauvegardent automatiquement via les watchers
+}
+
+// Gestionnaire d'événements pour la restauration
+const handleVisibilityChange = () => {
+  if (!document.hidden) {
+    console.log('🔄 Page redevenue visible, vérification de l\'état...')
+    // Vérifier si les données sont toujours valides
+    if (authStore.isAuthenticated) {
+      patientsStore.initialize()
+      callsStore.initialize()
+    }
+  }
+}
+
 // Configuration des guards de routage et thème
-onMounted(() => {
+onMounted(async () => {
   setupRouterGuards(router)
   
   // Restaurer le thème
@@ -415,6 +479,19 @@ onMounted(() => {
     isDark.value = true
     document.documentElement.classList.add('dark')
   }
+  
+  // Initialiser l'application
+  await initializeApp()
+  
+  // Ajouter les gestionnaires d'événements
+  window.addEventListener('beforeunload', handleBeforeUnload)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+})
+
+onBeforeUnmount(() => {
+  // Nettoyer les gestionnaires d'événements
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
 

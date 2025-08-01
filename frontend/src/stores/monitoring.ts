@@ -12,6 +12,13 @@ export interface ServiceStatus {
   uptime?: number
   errorMessage?: string
   icon: string
+  details?: {
+    totalRecords?: number
+    tableStats?: Record<string, number>
+    occupiedRooms?: number
+    activeHospitalizations?: number
+    currentTime?: string
+  }
 }
 
 export interface SystemMetric {
@@ -235,6 +242,17 @@ export const useMonitoringStore = defineStore('monitoring', () => {
       service.lastCheck = new Date()
       service.uptime = response.data.uptime
       service.errorMessage = response.data.error || undefined
+      
+      // Ajouter les détails spécifiques pour la base de données Oracle
+      if (serviceId === 'hospital-db' && response.data.totalRecords !== undefined) {
+        service.details = {
+          totalRecords: response.data.totalRecords,
+          tableStats: response.data.tableStats,
+          occupiedRooms: response.data.occupiedRooms,
+          activeHospitalizations: response.data.activeHospitalizations,
+          currentTime: response.data.currentTime
+        }
+      }
 
     } catch (error: any) {
       console.error(`❌ Monitoring ${serviceId}:`, error)
@@ -284,6 +302,17 @@ export const useMonitoringStore = defineStore('monitoring', () => {
     }, 5000)
   }
 
+  const initialize = async () => {
+    console.log('🔄 Initialisation du store monitoring...')
+    try {
+      await checkAllServices()
+      await updateSystemMetrics()
+      console.log('✅ Store monitoring initialisé')
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'initialisation du store monitoring:', error)
+    }
+  }
+
   return {
     // État
     services,
@@ -303,6 +332,7 @@ export const useMonitoringStore = defineStore('monitoring', () => {
     checkServiceStatus,
     checkAllServices,
     updateSystemMetrics,
-    startAutoRefresh
+    startAutoRefresh,
+    initialize
   }
 }) 

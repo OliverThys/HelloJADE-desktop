@@ -187,12 +187,15 @@ export const useAuthStore = defineStore('auth', () => {
 
   const checkAuth = async (): Promise<boolean> => {
     try {
+      console.log('🔐 Vérification de l\'authentification...')
+      
       // Vérifier si on a des tokens en localStorage
       const accessToken = localStorage.getItem('access_token')
       const refreshToken = localStorage.getItem('refresh_token')
       const userData = localStorage.getItem('user')
       
       if (!accessToken || !refreshToken || !userData) {
+        console.log('❌ Aucun token ou données utilisateur trouvés')
         return false
       }
       
@@ -207,14 +210,37 @@ export const useAuthStore = defineStore('auth', () => {
       // Configurer l'API
       api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`
       
-      // Simulation de vérification
-      await new Promise(resolve => setTimeout(resolve, 200))
-      
-      return true
+      // Vérifier la validité du token avec l'API
+      try {
+        const response = await api.get('/api/auth/verify')
+        if (response.data.success) {
+          console.log('✅ Token valide, authentification confirmée')
+          return true
+        } else {
+          console.log('❌ Token invalide, tentative de refresh')
+          return await refreshToken()
+        }
+      } catch (error: any) {
+        console.log('❌ Erreur lors de la vérification du token:', error.response?.status)
+        
+        // Si erreur 401, essayer de refresh
+        if (error.response?.status === 401) {
+          console.log('🔄 Tentative de refresh du token...')
+          return await refreshToken()
+        }
+        
+        // Pour les erreurs réseau, considérer comme authentifié si on a des données locales
+        if (error.code === 'NETWORK_ERROR' || error.response?.status === 0) {
+          console.log('⚠️ Erreur réseau, utilisation des données locales')
+          return true
+        }
+        
+        return false
+      }
       
     } catch (error) {
-      console.error('Erreur lors de la vérification d\'authentification:', error)
-      return await refreshToken()
+      console.error('❌ Erreur lors de la vérification d\'authentification:', error)
+      return false
     }
   }
 
