@@ -62,6 +62,32 @@
           </div>
         </nav>
 
+        <!-- Section monitoring accessible à tous -->
+        <div class="mt-8 px-4">
+          <h3 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
+            Monitoring
+          </h3>
+          <div class="space-y-2">
+            <router-link
+              to="/admin/monitoring"
+              :class="[
+                $route.path === '/admin/monitoring'
+                  ? 'bg-gradient-to-r from-blue-500/10 to-blue-600/10 border-blue-500/50 text-blue-700 dark:text-blue-300 shadow-lg'
+                  : 'border-transparent text-slate-600 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white hover:border-slate-300/50',
+                'group flex items-center px-4 py-3 text-sm font-medium border-l-4 transition-all duration-300 rounded-r-xl backdrop-blur-sm hover:scale-105'
+              ]"
+            >
+              <CircleStackIcon
+                :class="[
+                  $route.path === '/admin/monitoring' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300',
+                  'mr-4 h-5 w-5 transition-colors duration-300'
+                ]"
+              />
+              Monitoring Système
+            </router-link>
+          </div>
+        </div>
+
         <!-- Section admin si admin -->
         <div v-if="userStore.user?.role === 'admin'" class="mt-8 px-4">
           <h3 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
@@ -251,7 +277,8 @@ import {
   SunIcon,
   MoonIcon,
   ShieldCheckIcon,
-  ServerIcon
+  ServerIcon,
+  CircleStackIcon
 } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '@/stores/auth'
 import { useUserStore } from '@/stores/user'
@@ -292,15 +319,12 @@ const notificationCount = computed(() => notifications.value.length)
 const navigation = [
   { name: 'Tableau de bord', href: '/dashboard', icon: HomeIcon },
   { name: 'Patients', href: '/patients', icon: UsersIcon, badge: { count: 21, type: 'info' } },
-  { name: 'Appels', href: '/calls', icon: PhoneIcon, badge: { count: 3, type: 'warning' } },
-  { name: 'Transcription & IA', href: '/ai', icon: CpuChipIcon },
-  { name: 'Rapports', href: '/reports', icon: ChartBarIcon }
+  { name: 'Appels', href: '/calls', icon: PhoneIcon, badge: { count: 3, type: 'warning' } }
 ]
 
 const adminNavigation = [
   { name: 'Gestion utilisateurs', href: '/admin/users', icon: ShieldCheckIcon },
-  { name: 'Configuration système', href: '/admin/system', icon: CogIcon },
-  { name: 'Monitoring', href: '/admin/monitoring', icon: ServerIcon }
+  { name: 'Configuration système', href: '/admin/system', icon: CogIcon }
 ]
 
 const pageTitle = computed(() => {
@@ -309,8 +333,6 @@ const pageTitle = computed(() => {
     'Patients': 'Gestion des patients',
     'PatientDetail': 'Détails du patient',
     'Calls': 'Gestion des appels',
-    'AI': 'Transcription & IA',
-    'Reports': 'Rapports',
     'Account': 'Paramètres du compte',
     'AdminUsers': 'Gestion utilisateurs',
     'AdminSystem': 'Configuration système',
@@ -323,9 +345,7 @@ const pageSubtitle = computed(() => {
   const subtitles: Record<string, string> = {
     'Dashboard': 'Vue d\'ensemble de l\'activité',
     'Patients': 'Gestion des dossiers patients',
-    'Calls': 'Suivi des appels téléphoniques',
-    'AI': 'Transcription et analyse IA',
-    'Reports': 'Rapports et statistiques'
+    'Calls': 'Suivi des appels téléphoniques'
   }
   return subtitles[route.name as string] || ''
 })

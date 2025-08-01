@@ -17,6 +17,23 @@ export default {
           gray: '#6B7280',
           'gray-light': '#F3F4F6',
           'gray-dark': '#374151',
+        },
+        // Couleurs pour le thème clair/sombre
+        'light': {
+          'primary': '#1E40AF',
+          'primary-dark': '#1E3A8A',
+          'secondary': '#F3F4F6',
+          'secondary-dark': '#E5E7EB',
+          'text': '#1F2937',
+          'background': '#FFFFFF',
+        },
+        'dark': {
+          'primary': '#3B82F6',
+          'primary-dark': '#2563EB',
+          'secondary': '#374151',
+          'secondary-dark': '#4B5563',
+          'text': '#F9FAFB',
+          'background': '#111827',
         }
       },
       fontFamily: {

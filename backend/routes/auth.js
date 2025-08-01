@@ -37,18 +37,48 @@ router.post('/login', async (req, res) => {
     // Fonction pour se connecter à LDAP
     const authenticateUser = () => {
       return new Promise((resolve, reject) => {
-        // Essayer de se connecter avec l'utilisateur
-        client.bind(username, password, (err) => {
-          if (err) {
-            console.error('Erreur d\'authentification LDAP:', err.message)
+        // Essayer différents formats de bind
+        const bindAttempts = []
+        
+        if (username.includes('@')) {
+          // Pour les UPN, essayer dans cet ordre :
+          bindAttempts.push(username) // UPN complet
+          bindAttempts.push(`CN=${username.split('@')[0]},${LDAP_CONFIG.userSearchBase}`) // DN avec CN
+        } else if (!username.includes('=')) {
+          // Pour les noms simples
+          bindAttempts.push(`CN=${username},${LDAP_CONFIG.userSearchBase}`) // DN avec CN
+          bindAttempts.push(username) // Nom simple
+        } else {
+          // Déjà un DN
+          bindAttempts.push(username)
+        }
+
+        console.log('🔍 Tentatives de bind:', bindAttempts)
+
+        // Fonction récursive pour essayer chaque format
+        const tryBind = (attemptIndex) => {
+          if (attemptIndex >= bindAttempts.length) {
             reject(new Error('Identifiants invalides'))
             return
           }
 
+          const userDN = bindAttempts[attemptIndex]
+          console.log(`🔍 Tentative ${attemptIndex + 1}/${bindAttempts.length} avec:`, userDN)
+
+          client.bind(userDN, password, (err) => {
+            if (err) {
+              console.error(`❌ Échec tentative ${attemptIndex + 1}:`, err.message)
+              // Essayer le format suivant
+              tryBind(attemptIndex + 1)
+              return
+            }
+
+            console.log(`✅ Bind réussi avec:`, userDN)
+
           // Rechercher les informations de l'utilisateur
           const searchOptions = {
             scope: 'sub',
-            filter: `(&(objectClass=user)(userPrincipalName=${username}))`,
+            filter: `(&(objectClass=user)(|(userPrincipalName=${username})(sAMAccountName=${username.split('@')[0]})(cn=${username})))`,
             attributes: ['cn', 'mail', 'memberOf', 'userPrincipalName', 'sAMAccountName', 'name']
           }
 
@@ -98,8 +128,12 @@ router.post('/login', async (req, res) => {
             })
           })
         })
-      })
-    }
+      }
+
+      // Démarrer la première tentative
+      tryBind(0)
+    })
+  }
 
     // Authentifier l'utilisateur
     const userInfo = await authenticateUser()
@@ -123,8 +157,8 @@ router.post('/login', async (req, res) => {
         role: role,
         cn: userInfo.cn
       },
-      process.env.JWT_SECRET_KEY || 'your-secret-key',
-      { expiresIn: '24h' }
+      process.env.JWT_SECRET_KEY || process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
     )
 
     // Réponse de succès
@@ -170,7 +204,7 @@ router.get('/verify', (req, res) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY || 'your-secret-key')
+    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY || process.env.JWT_SECRET || 'your-secret-key')
     res.json({
       success: true,
       data: {

@@ -60,6 +60,7 @@
                 type="email"
                 autocomplete="email"
                 required
+                @input="clearErrors"
                 class="w-full pl-10 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-500/30 focus:border-green-500 transition-all duration-300 bg-white/50 backdrop-blur-sm text-slate-800 placeholder-gray-400"
                 :class="{ 'border-red-500 focus:border-red-500 focus:ring-red-500/30': errors.email }"
                 placeholder="votre.email@exemple.com"
@@ -91,6 +92,7 @@
                 :type="showPassword ? 'text' : 'password'"
                 autocomplete="current-password"
                 required
+                @input="clearErrors"
                 class="w-full pl-10 pr-12 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-500/30 focus:border-green-500 transition-all duration-300 bg-white/50 backdrop-blur-sm text-slate-800 placeholder-gray-400"
                 :class="{ 'border-red-500 focus:border-red-500 focus:ring-red-500/30': errors.password }"
                 placeholder="Votre mot de passe"
@@ -164,20 +166,38 @@
           </div>
 
           <!-- Message d'erreur général -->
-          <div v-if="generalError" class="rounded-xl bg-red-50 border border-red-200 p-4 animate-bounce-in">
+          <div v-if="generalError" class="rounded-xl bg-red-50 border border-red-200 p-4 animate-bounce-in shadow-lg">
             <div class="flex">
               <div class="flex-shrink-0">
                 <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
                 </svg>
               </div>
-              <div class="ml-3">
+              <div class="ml-3 flex-1">
                 <h3 class="text-sm font-semibold text-red-800">
-                  Erreur de connexion
+                  Échec de la connexion
                 </h3>
                 <div class="mt-2 text-sm text-red-700">
                   <p>{{ generalError }}</p>
                 </div>
+                <div class="mt-3 text-xs text-red-600">
+                  <p class="font-medium">Conseils :</p>
+                  <ul class="list-disc list-inside mt-1 space-y-1">
+                    <li>Vérifiez que votre email est correct</li>
+                    <li>Assurez-vous que votre mot de passe est exact</li>
+                    <li>Vérifiez que votre compte Active Directory est actif</li>
+                  </ul>
+                </div>
+              </div>
+              <div class="flex-shrink-0">
+                <button
+                  @click="generalError = ''"
+                  class="text-red-400 hover:text-red-600 transition-colors duration-200"
+                >
+                  <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
@@ -277,49 +297,85 @@ const errors = reactive({
 
 const generalError = ref('')
 
-// Validation du formulaire
-const validateForm = () => {
-  errors.email = ''
-  errors.password = ''
-  generalError.value = ''
-  
-  if (!form.email) {
-    errors.email = 'L\'adresse email est requise'
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-    errors.email = 'L\'adresse email n\'est pas valide'
+  // Fonction pour effacer les erreurs
+  const clearErrors = () => {
+    if (generalError.value) {
+      generalError.value = ''
+    }
+    if (errors.email) {
+      errors.email = ''
+    }
+    if (errors.password) {
+      errors.password = ''
+    }
   }
-  
-  if (!form.password) {
-    errors.password = 'Le mot de passe est requis'
-  }
-  
-  return !errors.email && !errors.password
-}
 
-// Gestion de la connexion
-const handleLogin = async () => {
-  if (!validateForm()) return
-  
-  try {
-    isLoading.value = true
+  // Validation du formulaire
+  const validateForm = () => {
+    errors.email = ''
+    errors.password = ''
+    generalError.value = ''
     
-    const success = await authStore.login({
-      username: form.email,
-      password: form.password
-    })
-    
-    if (success) {
-      toast.success('Connexion réussie')
-      router.push('/dashboard')
+    if (!form.email) {
+      errors.email = 'L\'adresse email est requise'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      errors.email = 'L\'adresse email n\'est pas valide'
     }
     
-  } catch (error: any) {
-    console.error('Erreur de connexion:', error)
-    generalError.value = error.response?.data?.message || 'Erreur de connexion'
-  } finally {
-    isLoading.value = false
+    if (!form.password) {
+      errors.password = 'Le mot de passe est requis'
+    }
+    
+    return !errors.email && !errors.password
   }
-}
+
+  // Gestion de la connexion
+  const handleLogin = async () => {
+    if (!validateForm()) return
+    
+    try {
+      isLoading.value = true
+      generalError.value = '' // Réinitialiser les erreurs
+      
+      console.log('🔐 Tentative de connexion avec:', { username: form.email })
+      
+      const success = await authStore.login({
+        username: form.email,
+        password: form.password
+      })
+      
+      console.log('🔐 Résultat de connexion:', success)
+      
+      if (success) {
+        toast.success('Connexion réussie')
+        router.push('/dashboard')
+      } else {
+        // L'authentification a échoué
+        generalError.value = 'Identifiants incorrects. Vérifiez votre email et mot de passe.'
+        toast.error('Échec de la connexion')
+      }
+      
+    } catch (error: any) {
+      console.error('Erreur de connexion:', error)
+      
+      // Gérer différents types d'erreurs
+      if (error.response?.status === 401) {
+        generalError.value = 'Email ou mot de passe incorrect'
+        toast.error('Identifiants invalides')
+      } else if (error.response?.status === 0 || error.code === 'NETWORK_ERROR') {
+        generalError.value = 'Impossible de se connecter au serveur. Vérifiez votre connexion réseau.'
+        toast.error('Erreur de connexion réseau')
+      } else if (error.response?.status >= 500) {
+        generalError.value = 'Erreur serveur. Veuillez réessayer plus tard.'
+        toast.error('Erreur serveur')
+      } else {
+        generalError.value = error.response?.data?.message || 'Une erreur inattendue s\'est produite'
+        toast.error('Erreur de connexion')
+      }
+    } finally {
+      isLoading.value = false
+    }
+  }
 
 // Gestion du mot de passe oublié
 const handleForgotPassword = async () => {

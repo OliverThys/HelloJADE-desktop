@@ -1,5 +1,4 @@
 import axios from 'axios'
-import { useToast } from 'vue-toastification'
 
 // Configuration de base
 const API_BASE_URL = 'http://localhost:8000'
@@ -23,7 +22,7 @@ api.interceptors.request.use(
       params: config.params
     })
     
-    const token = localStorage.getItem('auth_token')
+    const token = localStorage.getItem('access_token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -53,18 +52,16 @@ api.interceptors.response.use(
       data: error.response?.data
     })
     
-    const toast = useToast()
-    
     if (error.response) {
       // Erreur de réponse du serveur
       const message = error.response.data?.message || 'Erreur serveur'
-      toast.error(message)
+      console.error('Erreur serveur:', message)
     } else if (error.request) {
       // Erreur de réseau
-      toast.error('Erreur de connexion au serveur')
+      console.error('Erreur de connexion au serveur')
     } else {
       // Autre erreur
-      toast.error('Une erreur est survenue')
+      console.error('Une erreur est survenue')
     }
     
     return Promise.reject(error)
@@ -74,7 +71,7 @@ api.interceptors.response.use(
 // Interfaces basées sur votre structure de base de données
 
 export interface Patient {
-  id: number
+  id_patient: number
   numero_patient: string
   nom: string
   prenom: string
@@ -91,6 +88,10 @@ export interface Patient {
   personne_contact: string
   tel_contact: string
   numero_secu: string
+  service?: string
+  medecin?: string
+  date_admission?: string
+  date_sortie?: string
 }
 
 export interface Hospitalisation {
@@ -118,30 +119,8 @@ export interface Consultation {
   date_creation: string
 }
 
-export interface Transcription {
-  id: number
-  consultation_id: number
-  patient_id: number
-  fichier_audio: string
-  texte_transcrit: string
-  score_confiance: number
-  duree_secondes: number
-  statut: string
-  date_transcription: string
-}
 
-export interface AnalyseIA {
-  id: number
-  transcription_id: number
-  patient_id: number
-  type_analyse: string
-  resultats: string
-  mots_cles: string
-  sentiment: string
-  score_urgence: number
-  modele_ia: string
-  date_analyse: string
-}
+
 
 export interface Utilisateur {
   id: number
@@ -197,18 +176,7 @@ export interface DashboardStats {
     scheduled: number
     completed: number
   }
-  transcriptions: {
-    total: number
-    pending: number
-    completed: number
-    avgConfidence: number
-  }
-  analyses: {
-    total: number
-    sentiment: number
-    urgency: number
-    avgUrgency: number
-  }
+
 }
 
 export interface RecentActivity {
@@ -277,20 +245,10 @@ export const patientsService = {
     return response.data.data
   },
 
-  // Récupérer les transcriptions d'un patient
-  getTranscriptions: async (id: number): Promise<Transcription[]> => {
-    const response = await api.get(`/api/patients/${id}/transcriptions`)
-    return response.data.data
-  },
 
-  // Récupérer les analyses IA d'un patient
-  getAnalyses: async (id: number): Promise<AnalyseIA[]> => {
-    const response = await api.get(`/api/patients/${id}/analyses`)
-    return response.data.data
-  },
 
   // Créer un nouveau patient
-  create: async (patient: Omit<Patient, 'id' | 'date_creation'>): Promise<Patient> => {
+  create: async (patient: Omit<Patient, 'id_patient' | 'date_creation'>): Promise<Patient> => {
     const response = await api.post('/api/patients', patient)
     return response.data.data
   },
@@ -370,29 +328,7 @@ export const callsService = {
   }
 }
 
-export const aiService = {
-  // Transmettre un fichier audio pour transcription
-  transcribeAudio: async (file: File): Promise<Transcription> => {
-    const formData = new FormData()
-    formData.append('audio', file)
-    
-    const response = await api.post('/api/ai/transcribe', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    })
-    return response.data.data
-  },
 
-  // Analyser une transcription
-  analyzeTranscription: async (transcriptionId: number, type: string): Promise<AnalyseIA> => {
-    const response = await api.post('/api/ai/analyze', {
-      transcription_id: transcriptionId,
-      type_analyse: type
-    })
-    return response.data.data
-  }
-}
 
 // Utilitaires
 export const formatDate = (dateString: string): string => {

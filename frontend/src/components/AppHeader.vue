@@ -201,9 +201,7 @@ const notificationCount = computed(() => notifications.value.length)
 const navigation = [
   { name: 'Tableau de bord', href: '/', icon: 'HomeIcon' },
   { name: 'Patients', href: '/patients', icon: 'UsersIcon' },
-  { name: 'Appels', href: '/calls', icon: 'PhoneIcon' },
-  { name: 'IA', href: '/ai', icon: 'CpuChipIcon' },
-  { name: 'Rapports', href: '/reports', icon: 'ChartBarIcon' }
+  { name: 'Appels', href: '/calls', icon: 'PhoneIcon' }
 ]
 
 const userAvatar = computed(() => {

@@ -1,224 +1,125 @@
-# HelloJADE - Gestion des Appels Post-Hospitalisation
+# HelloJADE Desktop
 
-## 🚀 Architecture PostgreSQL + Docker
+Application desktop moderne pour la gestion hospitalière avec authentification LDAP.
 
-HelloJADE est une application de gestion des appels post-hospitalisation utilisant :
-- **Backend** : Node.js + Express + PostgreSQL
-- **Frontend** : Vue.js 3 + Tailwind CSS
-- **Base de données** : PostgreSQL (Docker)
-- **Cache** : Redis (Docker)
+## 🚀 Fonctionnalités
 
-## 📋 Prérequis
+- **Authentification LDAP** : Connexion sécurisée via Active Directory
+- **Interface moderne** : Frontend Vue.js avec Tailwind CSS
+- **API REST** : Backend Node.js avec Express
+- **Application desktop** : Interface Tauri pour une expérience native
 
-- Docker et Docker Compose
-- Node.js 18+
-- npm
+## 📁 Structure du projet
 
-## 🛠️ Installation et démarrage
+```
+HelloJADE-desktop/
+├── frontend/          # Application Vue.js + Tauri
+├── backend/           # API Node.js avec authentification LDAP
+├── AD_CONFIGURATION.md # Configuration Active Directory
+└── start-hellojade.js # Script de démarrage
+```
 
-### 1. Cloner le projet
+## 🛠️ Installation
+
+### Prérequis
+
+- Node.js 18+ 
+- npm ou yarn
+- Configuration LDAP/Active Directory
+
+### Démarrage rapide
+
 ```bash
+# Cloner le projet
 git clone <repository-url>
 cd HelloJADE-desktop
+
+# Démarrer l'application
+node start-hellojade.js
 ```
 
-### 2. Démarrer l'environnement complet
+### Démarrage manuel
+
 ```bash
+# Backend
 cd backend
 npm install
-docker-compose up -d
-node server.js
-```
+npm run dev
 
-### 3. Démarrer le frontend (dans un autre terminal)
-```bash
+# Frontend (dans un autre terminal)
 cd frontend
 npm install
 npm run dev
 ```
 
-### 4. Accéder à l'application
+## 🔐 Configuration LDAP
+
+1. Créer un fichier `.env` dans le dossier `backend/`
+2. Configurer les variables d'environnement LDAP :
+
+```env
+LDAP_SERVER=your-ldap-server.com
+LDAP_BASE_DN=DC=yourdomain,DC=com
+LDAP_BIND_DN=CN=ServiceAccount,OU=ServiceAccounts,DC=yourdomain,DC=com
+LDAP_BIND_PASSWORD=your-service-account-password
+LDAP_USER_SEARCH_BASE=OU=Users,DC=yourdomain,DC=com
+LDAP_GROUP_SEARCH_BASE=OU=Groups,DC=yourdomain,DC=com
+JWT_SECRET_KEY=your-jwt-secret-key
+```
+
+Voir `AD_CONFIGURATION.md` pour plus de détails.
+
+## 🌐 Accès
+
 - **Frontend** : http://localhost:5173
-- **Page Appels** : http://localhost:5173/calls
-- **API Backend** : http://localhost:8000/api
-- **PostgreSQL** : localhost:5432
+- **Backend API** : http://localhost:8000
+- **API Health Check** : http://localhost:8000/api/health
 
-## 🗄️ Structure de la base de données
+## 📋 Pages disponibles
 
-### Tables principales
-- `patients_sync` : Patients synchronisés depuis Oracle
-- `hospitalisations_sync` : Hospitalisations synchronisées
-- `calls` : Appels post-hospitalisation
-- `call_history` : Historique des modifications
-- `scores` : Scores détaillés des appels
-- `call_metadata` : Métadonnées des appels
+- **Login** : Authentification LDAP
+- **Dashboard** : En cours de développement
+- **Patients** : En cours de développement
+- **Appels** : En cours de développement
+- **IA** : En cours de développement
+- **Administration** : En cours de développement
 
-### Données de test incluses
-- 5 patients de test
-- 5 hospitalisations de test
-- 5 appels de test (avec différents statuts)
+## 🔧 Développement
 
-## 📊 Fonctionnalités de la page Appels
+### Backend
 
-### Filtres disponibles
-- **Recherche globale** : Nom, prénom, numéro patient
-- **Filtre par date** : Intervalle de dates d'appel
-- **Filtre par statut** : À appeler, Appelé, Échec
-
-### Actions disponibles
-- **Sync Oracle** : Synchronisation avec la base hospitalière
-- **Export CSV** : Export des données filtrées
-- **Voir résumé** : Modal détaillé de l'appel
-- **Export PDF** : Export du résumé en PDF
-
-### Colonnes du tableau
-- **Patient** : Nom, prénom, numéro, date naissance
-- **Contact** : Téléphone
-- **Hospitalisation** : Site, service, médecin, date sortie
-- **Appel** : Date prévue/réelle, durée, statut
-- **Résultats** : Score, résumé
-- **Actions** : Voir résumé, export PDF
-
-## 🔧 Configuration
-
-### Variables d'environnement
-```bash
-# Backend
-PORT=8000
-NODE_ENV=development
-
-# PostgreSQL
-POSTGRES_DB=hellojade
-POSTGRES_USER=hellojade_user
-POSTGRES_PASSWORD=hellojade_password
-```
-
-### Docker Compose
-```yaml
-services:
-  postgres:
-    image: postgres:15
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_DB: hellojade
-      POSTGRES_USER: hellojade_user
-      POSTGRES_PASSWORD: hellojade_password
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-```
-
-## 📡 API Endpoints
-
-### Appels
-- `GET /api/calls` - Liste des appels avec filtres
-- `GET /api/calls/:id` - Détails d'un appel
-- `POST /api/calls` - Créer un appel
-- `PUT /api/calls/:id` - Modifier un appel
-- `GET /api/calls/statistics/overview` - Statistiques
-- `POST /api/calls/sync-oracle` - Sync Oracle
-- `GET /api/calls/export/csv` - Export CSV
-
-### Santé
-- `GET /api/health` - Statut de l'API
-
-## 🎯 Workflow d'appel
-
-1. **Synchronisation Oracle** : Récupération des nouveaux patients
-2. **Création d'appels** : Génération automatique des appels prévus
-3. **Exécution d'appels** : Via Asterisk + Whisper + Rasa
-4. **Analyse** : Scoring via Ollama
-5. **Stockage** : Sauvegarde en PostgreSQL
-6. **Interface** : Visualisation et gestion via Vue.js
-
-## 🚀 Démarrage rapide
-
-### Script automatique
 ```bash
 cd backend
-node start-hellojade.js
+npm run dev          # Mode développement
+npm run test-ldap    # Tester la connexion LDAP
 ```
 
-Ce script démarre automatiquement :
-- Docker Compose (PostgreSQL + Redis)
-- Serveur backend
-- Frontend (si configuré)
+### Frontend
 
-## 🔍 Dépannage
-
-### Problèmes courants
-
-**PostgreSQL ne démarre pas**
 ```bash
-docker-compose down
-docker-compose up -d
+cd frontend
+npm run dev          # Mode développement
+npm run build        # Build de production
+npm run tauri dev    # Application desktop
 ```
 
-**Erreur de connexion à la base**
-```bash
-# Vérifier les logs
-docker-compose logs postgres
+## 📝 Scripts disponibles
 
-# Redémarrer le service
-docker-compose restart postgres
-```
+- `node start-hellojade.js` : Démarre le backend et le frontend
+- `cd backend && npm run dev` : Démarre le backend en mode développement
+- `cd frontend && npm run dev` : Démarre le frontend en mode développement
 
-**Frontend ne se connecte pas à l'API**
-- Vérifier que le serveur backend tourne sur le port 8000
-- Vérifier les CORS dans `server.js`
+## 🏗️ Architecture
 
-## 📝 Format des données
+- **Frontend** : Vue.js 3 + Vite + Tailwind CSS + Tauri
+- **Backend** : Node.js + Express + LDAP.js + JWT
+- **Authentification** : LDAP/Active Directory + JWT
+- **Interface** : Application desktop native avec Tauri
 
-### Structure d'un appel
-```json
-{
-  "project_call_id": 1,
-  "project_patient_id": 1,
-  "statut": "complete",
-  "date_appel_prevue": "2025-01-30T14:00:00",
-  "date_appel_reelle": "2025-01-30T14:30:22",
-  "duree_secondes": 185,
-  "score": 85,
-  "resume_appel": "Patient en bonne forme...",
-  "dialogue_result": {
-    "douleur_niveau": 3,
-    "traitement_suivi": true,
-    "moral_niveau": 7
-  }
-}
-```
+## 📄 Licence
 
-## 🔄 Synchronisation Oracle
+MIT License - Voir le fichier LICENSE pour plus de détails.
 
-La synchronisation avec Oracle est simulée pour le moment. Pour l'intégrer :
+## 👥 Équipe
 
-1. Modifier `services/postgresql.js`
-2. Ajouter la connexion Oracle
-3. Implémenter la logique de sync dans `syncFromOracle()`
-
-## 📈 Performance
-
-- **PostgreSQL** : Optimisé pour milliers d'appels/jour
-- **Index** : Créés sur les colonnes fréquemment utilisées
-- **Cache Redis** : Pour les données temps réel
-- **Virtual Scroll** : Pour les gros tableaux
-
-## 🛡️ Sécurité
-
-- **CORS** : Configuré pour le développement
-- **Validation** : Des données d'entrée
-- **Isolation** : Base PostgreSQL séparée de l'hôpital
-
-## 📞 Support
-
-Pour toute question ou problème :
-1. Vérifier les logs Docker : `docker-compose logs`
-2. Vérifier les logs backend : `node server.js`
-3. Vérifier les logs frontend : `npm run dev`
-
----
-
-**HelloJADE** - Gestion intelligente des appels post-hospitalisation 
+HelloJADE Team 

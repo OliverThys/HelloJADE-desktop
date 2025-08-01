@@ -135,16 +135,7 @@
                 </label>
               </div>
               
-              <div class="flex items-center">
-                <input
-                  v-model="form.permissions.reports"
-                  type="checkbox"
-                  class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label class="ml-2 block text-sm text-gray-900">
-                  Accès aux rapports
-                </label>
-              </div>
+
               
               <div class="flex items-center">
                 <input

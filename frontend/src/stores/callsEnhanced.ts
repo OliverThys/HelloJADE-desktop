@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { api } from '@/utils/api'
-import { useToast } from 'vue-toastification'
 
 export interface Call {
   id: number
@@ -29,140 +28,47 @@ export interface Call {
 }
 
 export const useCallsEnhancedStore = defineStore('callsEnhanced', () => {
-  const toast = useToast()
-  
-  // State
-  const calls = ref<Call[]>([])
+  const calls = ref([])
   const isLoading = ref(false)
-  const error = ref<string | null>(null)
 
-  // Computed
-  const pendingCalls = computed(() => 
-    calls.value.filter(call => call.statut === 'pending')
-  )
-
-  const activeCalls = computed(() => 
-    calls.value.filter(call => call.statut === 'in_progress')
-  )
-
-  const completedCalls = computed(() => 
-    calls.value.filter(call => call.statut === 'called')
-  )
-
-  const failedCalls = computed(() => 
-    calls.value.filter(call => call.statut === 'failed')
-  )
-
-  const callStats = computed(() => ({
-    total: calls.value.length,
-    pending: pendingCalls.value.length,
-    active: activeCalls.value.length,
-    completed: completedCalls.value.length,
-    failed: failedCalls.value.length
-  }))
-
-  // Actions
-  const fetchCalls = async (params?: any) => {
+  const fetchCalls = async () => {
     try {
       isLoading.value = true
-      error.value = null
       
-      console.log('📞 Chargement des appels avec params:', params)
+      // Simulation de données
+      await new Promise(resolve => setTimeout(resolve, 1000))
       
-      const response = await api.get('/api/calls', { params })
-      console.log('📥 Réponse API:', response.data)
+      calls.value = [
+        {
+          id: 1,
+          patientName: 'Jean Dupont',
+          phoneNumber: '+33123456789',
+          status: 'completed',
+          duration: 300,
+          timestamp: new Date(Date.now() - 3600000)
+        },
+        {
+          id: 2,
+          patientName: 'Marie Martin',
+          phoneNumber: '+33987654321',
+          status: 'pending',
+          duration: 0,
+          timestamp: new Date(Date.now() - 1800000)
+        }
+      ]
       
-      if (response.data.success && response.data.data && response.data.data.items) {
-        calls.value = response.data.data.items
-        console.log(`✅ ${calls.value.length} appels chargés`)
-        toast.success(`${calls.value.length} appels chargés`)
-      } else {
-        console.warn('❌ Format de réponse inattendu:', response.data)
-        calls.value = []
-        error.value = 'Format de réponse inattendu'
-        toast.error('Erreur: format de réponse inattendu')
-      }
+      console.log('Appels JADE chargés avec succès')
       
-    } catch (err: any) {
-      console.error('❌ Erreur lors du chargement des appels:', err)
-      error.value = err.message || 'Erreur lors du chargement des appels'
-      calls.value = []
-      toast.error(error.value)
+    } catch (error) {
+      console.error('Erreur lors du chargement des appels JADE:', error)
     } finally {
       isLoading.value = false
     }
   }
 
-  const getCallById = async (id: number): Promise<Call | null> => {
-    try {
-      const response = await api.get(`/api/calls/${id}`)
-      if (response.data.success) {
-        return response.data.data
-      }
-      return null
-    } catch (err) {
-      console.error('Erreur lors de la récupération de l\'appel:', err)
-      return null
-    }
-  }
-
-  const getCallScores = async (id: number) => {
-    try {
-      const response = await api.get(`/api/calls/${id}/scores`)
-      if (response.data.success) {
-        return response.data.data
-      }
-      return []
-    } catch (err) {
-      console.error('Erreur lors de la récupération des scores:', err)
-      return []
-    }
-  }
-
-  const getServices = async () => {
-    try {
-      const response = await api.get('/api/calls/services')
-      if (response.data.success) {
-        return response.data.data
-      }
-      return []
-    } catch (err) {
-      console.error('Erreur lors de la récupération des services:', err)
-      return []
-    }
-  }
-
-  const getStatistics = async () => {
-    try {
-      const response = await api.get('/api/calls/statistics/overview')
-      if (response.data.success) {
-        return response.data.data
-      }
-      return null
-    } catch (err) {
-      console.error('Erreur lors de la récupération des statistiques:', err)
-      return null
-    }
-  }
-
   return {
-    // State
     calls,
     isLoading,
-    error,
-    
-    // Computed
-    pendingCalls,
-    activeCalls,
-    completedCalls,
-    failedCalls,
-    callStats,
-    
-    // Actions
-    fetchCalls,
-    getCallById,
-    getCallScores,
-    getServices,
-    getStatistics
+    fetchCalls
   }
 }) 

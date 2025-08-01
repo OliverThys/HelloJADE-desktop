@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { api } from '@/utils/api'
-import { useToast } from 'vue-toastification'
 
 export interface User {
   id: number
@@ -49,7 +48,6 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const tokens = ref<AuthTokens | null>(null)
   const isLoading = ref(false)
-  const toast = useToast()
 
   // Computed properties
   const isAuthenticated = computed(() => !!user.value && !!tokens.value)
@@ -64,11 +62,16 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       isLoading.value = true
       
+      console.log('🔐 Store: Tentative de connexion LDAP')
+      console.log('🔐 Store: Credentials:', { username: credentials.username })
+      
       // Appel API LDAP
       const response = await api.post('/api/auth/login', {
         username: credentials.username,
         password: credentials.password
       })
+      
+      console.log('🔐 Store: Réponse API:', response.data)
       
       if (response.data.success) {
         const { token, user: userData } = response.data.data
@@ -100,19 +103,28 @@ export const useAuthStore = defineStore('auth', () => {
         // Configurer l'API
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`
         
-        toast.success(`Connexion réussie - Bienvenue ${userData.first_name} !`)
+        console.log(`Connexion réussie - Bienvenue ${userData.first_name} !`)
         return true
         
       } else {
-        toast.error(response.data.message || 'Email ou mot de passe incorrect')
-        return false
+        console.error('🔐 Store: Échec de connexion:', response.data.message || 'Email ou mot de passe incorrect')
+        throw new Error(response.data.message || 'Identifiants invalides')
       }
       
     } catch (error: any) {
-      console.error('Erreur de connexion:', error)
-      const message = error.response?.data?.message || 'Erreur de connexion'
-      toast.error(message)
-      return false
+      console.error('🔐 Store: Erreur de connexion:', error)
+      console.error('🔐 Store: Erreur response:', error.response?.data)
+      
+      // Propager l'erreur avec plus de détails
+      if (error.response?.status === 401) {
+        throw new Error('Email ou mot de passe incorrect')
+      } else if (error.response?.status === 0 || error.code === 'NETWORK_ERROR') {
+        throw new Error('Impossible de se connecter au serveur')
+      } else if (error.response?.status >= 500) {
+        throw new Error('Erreur serveur')
+      } else {
+        throw new Error(error.response?.data?.message || 'Erreur de connexion')
+      }
     } finally {
       isLoading.value = false
     }
@@ -137,7 +149,7 @@ export const useAuthStore = defineStore('auth', () => {
       // Nettoyer les headers API
       delete api.defaults.headers.common['Authorization']
       
-      toast.success('Déconnexion réussie')
+      console.log('Déconnexion réussie')
     }
   }
 
@@ -219,12 +231,12 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.setItem('user', JSON.stringify(user.value))
       }
       
-      toast.success('Profil mis à jour avec succès')
+      console.log('Profil mis à jour avec succès')
       return true
       
     } catch (error: any) {
       console.error('Erreur lors de la mise à jour du profil:', error)
-      toast.error('Erreur lors de la mise à jour')
+      console.error('Erreur lors de la mise à jour')
       return false
     } finally {
       isLoading.value = false
@@ -244,21 +256,21 @@ export const useAuthStore = defineStore('auth', () => {
       
       // Vérification simulée
       if (passwordData.new_password !== passwordData.confirm_password) {
-        toast.error('Les mots de passe ne correspondent pas')
+        console.error('Les mots de passe ne correspondent pas')
         return false
       }
       
       if (passwordData.new_password.length < 6) {
-        toast.error('Le mot de passe doit contenir au moins 6 caractères')
+        console.error('Le mot de passe doit contenir au moins 6 caractères')
         return false
       }
       
-      toast.success('Mot de passe modifié avec succès')
+      console.log('Mot de passe modifié avec succès')
       return true
       
     } catch (error: any) {
       console.error('Erreur lors du changement de mot de passe:', error)
-      toast.error('Erreur lors du changement de mot de passe')
+      console.error('Erreur lors du changement de mot de passe')
       return false
     } finally {
       isLoading.value = false
@@ -273,26 +285,22 @@ export const useAuthStore = defineStore('auth', () => {
         'users:read', 'users:write', 'users:delete',
         'patients:read', 'patients:write', 'patients:delete',
         'calls:read', 'calls:write', 'calls:delete',
-        'ai:read', 'ai:write',
         'admin:read', 'admin:write',
         'monitoring:read', 'monitoring:write'
       ],
       medecin: [
         'patients:read', 'patients:write',
         'calls:read', 'calls:write',
-        'ai:read', 'ai:write',
         'medical_records:read', 'medical_records:write'
       ],
       infirmier: [
         'patients:read', 'patients:write',
         'calls:read', 'calls:write',
-        'ai:read',
         'medical_records:read', 'medical_records:write'
       ],
       secretaire: [
         'patients:read', 'patients:write',
-        'calls:read', 'calls:write',
-        'ai:read'
+        'calls:read', 'calls:write'
       ],
       user: [
         'patients:read',

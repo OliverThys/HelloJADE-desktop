@@ -8,8 +8,7 @@ import PatientsView from '@/views/PatientsView.vue'
 import PatientDetailView from '@/views/PatientDetailView.vue'
 import CallsView from '@/views/CallsView.vue'
 import CallsEnhancedView from '@/views/CallsEnhancedView.vue'
-import AIView from '@/views/AIView.vue'
-import ReportsView from '@/views/ReportsView.vue'
+
 import AccountSettingsView from '@/views/AccountSettingsView.vue'
 
 // Pages admin
@@ -86,26 +85,7 @@ export const routes: RouteRecordRaw[] = [
       icon: 'PhoneIcon'
     }
   },
-  {
-    path: '/ai',
-    name: 'AI',
-    component: AIView,
-    meta: { 
-      requiresAuth: true,
-      title: 'Transcription & IA - HelloJADE',
-      icon: 'CpuChipIcon'
-    }
-  },
-  {
-    path: '/reports',
-    name: 'Reports',
-    component: ReportsView,
-    meta: { 
-      requiresAuth: true,
-      title: 'Rapports - HelloJADE',
-      icon: 'ChartBarIcon'
-    }
-  },
+
   {
     path: '/account',
     name: 'Account',
@@ -145,9 +125,9 @@ export const routes: RouteRecordRaw[] = [
     component: AdminMonitoringView,
     meta: { 
       requiresAuth: true,
-      requiresAdmin: true,
+      requiresAdmin: false,
       title: 'Monitoring - HelloJADE',
-      icon: 'DatabaseIcon'
+      icon: 'CircleStackIcon'
     }
   },
   {
