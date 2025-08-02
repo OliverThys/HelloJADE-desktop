@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Export PDF</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+    <h1>Test Export PDF</h1>
+    <button onclick="testPDF()">Tester Export PDF</button>
+    <div id="status"></div>
+
+    <script>
+        function testPDF() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = 'Génération en cours...';
+            
+            try {
+                // Créer un document PDF
+                const doc = new window.jspdf.jsPDF();
+                
+                // Ajouter du contenu
+                doc.setFontSize(20);
+                doc.text('Test HelloJADE', 20, 20);
+                
+                doc.setFontSize(12);
+                doc.text('Ceci est un test d\'export PDF', 20, 40);
+                doc.text('Date: ' + new Date().toLocaleDateString('fr-FR'), 20, 60);
+                
+                // Créer un tableau simple
+                const tableData = [
+                    ['Nom', 'Prénom', 'Âge'],
+                    ['Dupont', 'Jean', '45'],
+                    ['Martin', 'Marie', '32'],
+                    ['Durand', 'Pierre', '28']
+                ];
+                
+                doc.autoTable({
+                    startY: 80,
+                    head: [tableData[0]],
+                    body: tableData.slice(1),
+                    theme: 'grid',
+                    headStyles: {
+                        fillColor: [59, 130, 246],
+                        textColor: 255,
+                        fontStyle: 'bold'
+                    }
+                });
+                
+                // Télécharger le fichier
+                const filename = 'test_hellojade_' + new Date().toISOString().split('T')[0] + '.pdf';
+                
+                try {
+                    doc.save(filename);
+                    statusDiv.innerHTML = '✅ PDF généré avec succès: ' + filename;
+                } catch (saveError) {
+                    console.warn('doc.save() a échoué, tentative avec Blob:', saveError);
+                    
+                    // Méthode alternative avec Blob
+                    const pdfBlob = doc.output('blob');
+                    const url = URL.createObjectURL(pdfBlob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = filename;
+                    link.style.display = 'none';
+                    
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    setTimeout(() => {
+                        URL.revokeObjectURL(url);
+                    }, 100);
+                    
+                    statusDiv.innerHTML = '✅ PDF généré avec succès (méthode Blob): ' + filename;
+                }
+                
+            } catch (error) {
+                console.error('Erreur lors du test PDF:', error);
+                statusDiv.innerHTML = '❌ Erreur: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html> 

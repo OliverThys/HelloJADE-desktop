@@ -5,6 +5,8 @@ import { createI18n } from 'vue-i18n'
 import Toast from 'vue-toastification'
 import 'vue-toastification/dist/index.css'
 
+
+
 import App from './App.vue'
 import { routes, setupRouterGuards } from './router'
 import { i18nConfig } from './i18n'

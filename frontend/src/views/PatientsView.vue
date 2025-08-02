@@ -1,6 +1,6 @@
 <template>
   <div class="patients-container">
-    <!-- En-tête avec statistiques -->
+    <!-- En-tête principal -->
     <div class="mb-8">
       <div class="flex items-center justify-between mb-6">
         <div>
@@ -11,146 +11,74 @@
             Interface de gestion des patients hospitaliers - {{ statistics.total_patients }} patients enregistrés
           </p>
         </div>
-        <div class="flex items-center space-x-3">
-                     <button
-             @click="openExportModal"
-             :disabled="isLoading"
-             class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
-           >
-             <DocumentArrowDownIcon class="h-4 w-4 mr-2" />
-             Exporter
-           </button>
+        <div class="flex items-center space-x-4">
+          <button
+            @click="openExportModal"
+            :disabled="isLoading"
+            class="group relative px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transform hover:scale-105 hover:shadow-lg transition-all duration-300 ease-out flex items-center font-medium shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
+          >
+            <div class="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 rounded-xl transition-opacity duration-300"></div>
+            <DocumentArrowDownIcon class="h-5 w-5 mr-2 group-hover:-translate-y-0.5 transition-transform duration-300" />
+            Exporter
+          </button>
+          
           <button
             @click="refreshData"
             :disabled="isLoading"
-            class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+            class="group relative px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transform hover:scale-105 hover:shadow-lg transition-all duration-300 ease-out flex items-center font-medium shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
           >
-            <ArrowPathIcon v-if="isLoading" class="h-4 w-4 mr-2 animate-spin" />
-            <ArrowPathIcon v-else class="h-4 w-4 mr-2" />
+            <div class="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 rounded-xl transition-opacity duration-300"></div>
+            <ArrowPathIcon v-if="isLoading" class="h-5 w-5 mr-2 animate-spin" />
+            <ArrowPathIcon v-else class="h-5 w-5 mr-2 group-hover:rotate-180 transition-transform duration-500" />
             Actualiser
           </button>
         </div>
       </div>
 
-      <!-- Cartes de statistiques -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
-          <div class="flex items-center">
-            <div class="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
-              <UsersIcon class="h-6 w-6 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div class="ml-4">
-              <p class="text-sm font-medium text-slate-600 dark:text-slate-400">Total Patients</p>
-              <p class="text-2xl font-bold text-slate-900 dark:text-white">{{ statistics.total_patients }}</p>
-            </div>
-          </div>
-        </div>
+      <!-- Conteneur des statistiques avec transition -->
+      <transition
+        enter-active-class="transition-all duration-300 ease-out"
+        leave-active-class="transition-all duration-200 ease-in"
+        enter-from-class="opacity-0 transform -translate-y-4"
+        leave-to-class="opacity-0 transform -translate-y-4"
+      >
+        <div 
+          v-show="showStatistics"
+          class="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 p-6 mb-6 backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95 relative"
+        >
+                     <!-- Encoche pour fermer les statistiques -->
+           <div 
+             @click="toggleStatistics"
+             class="absolute -top-4 left-1/2 transform -translate-x-1/2 w-20 h-8 bg-gradient-to-b from-purple-600 to-purple-700 rounded-t-lg cursor-pointer hover:from-purple-700 hover:to-purple-800 transition-all duration-200 flex items-center justify-center shadow-lg"
+           >
+             <ChevronUpIcon class="h-5 w-5 text-white" />
+           </div>
+          
+          <!-- Nouveau Dashboard avec cartes cliquables -->
+          <PatientStatsCards 
+            :patients="patients" 
+            :active-filter="activeFilter"
+            @filter-change="handleFilterChange"
+          />
 
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
-          <div class="flex items-center">
-            <div class="p-2 bg-green-100 dark:bg-green-900/50 rounded-lg">
-              <UserIcon class="h-6 w-6 text-green-600 dark:text-green-400" />
-            </div>
-            <div class="ml-4">
-              <p class="text-sm font-medium text-slate-600 dark:text-slate-400">Hommes</p>
-              <p class="text-2xl font-bold text-slate-900 dark:text-white">{{ statistics.male_count }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
-          <div class="flex items-center">
-            <div class="p-2 bg-pink-100 dark:bg-pink-900/50 rounded-lg">
-              <UserIcon class="h-6 w-6 text-pink-600 dark:text-pink-400" />
-            </div>
-            <div class="ml-4">
-              <p class="text-sm font-medium text-slate-600 dark:text-slate-400">Femmes</p>
-              <p class="text-2xl font-bold text-slate-900 dark:text-white">{{ statistics.female_count }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
-          <div class="flex items-center">
-            <div class="p-2 bg-purple-100 dark:bg-purple-900/50 rounded-lg">
-              <ClockIcon class="h-6 w-6 text-purple-600 dark:text-purple-400" />
-            </div>
-            <div class="ml-4">
-              <p class="text-sm font-medium text-slate-600 dark:text-slate-400">Âge Moyen</p>
-              <p class="text-2xl font-bold text-slate-900 dark:text-white">{{ Math.round(statistics.avg_age) }} ans</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Filtres et recherche -->
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6 mb-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <!-- Recherche -->
-        <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            Recherche
-          </label>
-          <div class="relative">
-            <MagnifyingGlassIcon class="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
-            <input
-              v-model="filters.search"
-              @input="handleSearch"
-              type="text"
-              placeholder="Nom, prénom, téléphone..."
-              class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+          <!-- Recherche intelligente -->
+          <div class="mt-6">
+            <SmartSearch 
+              :patients="patients"
+              @search-change="handleSearchChange"
             />
           </div>
-        </div>
 
-
-
-        <!-- Âge minimum -->
-        <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            Âge min
-          </label>
-          <input
-            v-model="filters.ageMin"
-            @input="handleFilterChange"
-            type="number"
-            placeholder="0"
-            class="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
-          />
+          <!-- Graphiques et visualisations -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+            <!-- Pyramide des âges -->
+            <PatientAgePyramid :patients="patients" />
+            
+            <!-- Heatmap des admissions -->
+            <PatientAdmissionsHeatmap :patients="patients" />
+          </div>
         </div>
-
-        <!-- Âge maximum -->
-        <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            Âge max
-          </label>
-          <input
-            v-model="filters.ageMax"
-            @input="handleFilterChange"
-            type="number"
-            placeholder="120"
-            class="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
-          />
-        </div>
-      </div>
-
-      <!-- Boutons de filtres -->
-      <div class="flex items-center justify-between mt-4">
-        <div class="flex items-center space-x-4">
-          <button
-            @click="clearFilters"
-            class="text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 underline"
-          >
-            Effacer les filtres
-          </button>
-        </div>
-        <div class="flex items-center space-x-2">
-          <span class="text-sm text-slate-600 dark:text-slate-400">
-            {{ currentPageInfo }}
-          </span>
-        </div>
-      </div>
+      </transition>
     </div>
 
     <!-- Message d'erreur -->
@@ -175,8 +103,20 @@
       </div>
     </div>
 
-    <!-- Tableau des patients -->
-    <div v-else-if="patients.length > 0" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
+    <!-- Tableau des patients avec transition -->
+    <div 
+      v-if="patients.length > 0" 
+      class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden relative transition-all duration-700 ease-out"
+      :style="showStatistics ? 'transform: translateY(0)' : 'transform: translateY(0)'"
+    >
+             <!-- Encoche pour ouvrir les statistiques -->
+       <div 
+         @click="toggleStatistics"
+         class="absolute -top-4 left-1/2 transform -translate-x-1/2 w-20 h-8 bg-gradient-to-b from-purple-500 to-purple-600 rounded-t-lg cursor-pointer hover:from-purple-600 hover:to-purple-700 transition-all duration-200 flex items-center justify-center shadow-lg"
+       >
+         <ChevronDownIcon class="h-5 w-5 text-white transform translate-y-1" />
+       </div>
+
       <!-- En-tête du tableau -->
       <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
         <div class="flex items-center justify-between">
@@ -419,13 +359,21 @@ import {
   EyeIcon,
   PencilIcon,
   DocumentArrowDownIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  ChartBarIcon,
+  ChevronDownIcon,
+  ChevronUpIcon
 } from '@heroicons/vue/24/outline'
 import { usePatientsStore } from '@/stores/patients'
+import { notify } from '@/composables/useNotifications'
 import PatientModal from '@/components/PatientModal.vue'
 import PatientEditModal from '@/components/PatientEditModal.vue'
 import PatientExportModal from '@/components/PatientExportModal.vue'
 import { generateDefaultPatientPDF } from '@/utils/pdfGenerator'
+import PatientStatsCards from '@/components/patients/PatientStatsCards.vue'
+import SmartSearch from '@/components/patients/SmartSearch.vue'
+import PatientAgePyramid from '@/components/patients/PatientAgePyramid.vue'
+import PatientAdmissionsHeatmap from '@/components/patients/PatientAdmissionsHeatmap.vue'
 
 const patientsStore = usePatientsStore()
 
@@ -435,6 +383,8 @@ const showEditModal = ref(false)
 const showExportModal = ref(false)
 const selectedPatient = ref(null)
 const searchTimeout = ref<NodeJS.Timeout | null>(null)
+const activeFilter = ref('all')
+const showStatistics = ref(false)
 
 // Computed properties
 const patients = computed(() => patientsStore.patients)
@@ -452,6 +402,10 @@ const refreshData = () => {
   patientsStore.fetchPatients(true)
 }
 
+const toggleStatistics = () => {
+  showStatistics.value = !showStatistics.value
+}
+
 const handleSearch = () => {
   if (searchTimeout.value) {
     clearTimeout(searchTimeout.value)
@@ -460,10 +414,6 @@ const handleSearch = () => {
     patientsStore.setFilters({ search: filters.value.search })
     patientsStore.fetchPatients(true)
   }, 300)
-}
-
-const handleFilterChange = () => {
-  patientsStore.fetchPatients(true)
 }
 
 const handleSortChange = () => {
@@ -484,6 +434,50 @@ const handleLimitChange = () => {
 
 const clearFilters = () => {
   patientsStore.clearFilters()
+  patientsStore.fetchPatients(true)
+}
+
+// Nouvelles fonctions pour les filtres avancés
+const handleFilterChange = (filter: { type: string, value: any }) => {
+  activeFilter.value = filter.value.group || filter.value
+  
+  if (filter.type === 'age') {
+    const { minAge, maxAge } = filter.value
+    patientsStore.setFilters({
+      ageMin: minAge.toString(),
+      ageMax: maxAge.toString()
+    })
+  } else if (filter.type === 'status') {
+    // Appliquer le filtre de statut côté client
+    // Le filtrage se fait dans le composant SmartSearch
+  }
+  
+  patientsStore.fetchPatients(true)
+}
+
+const handleSearchChange = (filters: {
+  query: string
+  ageFilter: string
+  statusFilter: string
+  sortBy: string
+  sortOrder: string
+}) => {
+  // Appliquer les nouveaux filtres
+  patientsStore.setFilters({
+    search: filters.query,
+    sortBy: filters.sortBy,
+    sortOrder: filters.sortOrder
+  })
+  
+  // Appliquer les filtres d'âge
+  if (filters.ageFilter) {
+    const [minAge, maxAge] = filters.ageFilter.split('-').map(Number)
+    patientsStore.setFilters({
+      ageMin: minAge.toString(),
+      ageMax: maxAge === 65 ? '65' : '120'
+    })
+  }
+  
   patientsStore.fetchPatients(true)
 }
 
@@ -544,10 +538,12 @@ const editPatient = (patient: any) => {
 const handlePatientSaved = async (updatedPatient: any) => {
   try {
     await patientsStore.updatePatient(updatedPatient.patient_id, updatedPatient)
-    // Optionnel : afficher une notification de succès
+    // Afficher une notification de succès
     console.log('Patient mis à jour avec succès')
+    notify.success('Patient mis à jour', `Patient ${updatedPatient.prenom} ${updatedPatient.nom} mis à jour avec succès`)
   } catch (error) {
     console.error('Erreur lors de la mise à jour:', error)
+    notify.error('Erreur de mise à jour', 'Erreur lors de la mise à jour du patient')
   }
 }
 
@@ -561,10 +557,28 @@ const openExportModal = () => {
 
 const handleExportPDF = async (selectedPatients: any[]) => {
   try {
+    console.log('Début de l\'export PDF pour', selectedPatients.length, 'patients')
+    
+    // Vérifier qu'il y a des patients sélectionnés
+    if (!selectedPatients || selectedPatients.length === 0) {
+      console.warn('Aucun patient sélectionné pour l\'export')
+      return
+    }
+    
+    // Générer le PDF
     await generateDefaultPatientPDF(selectedPatients)
+    
+    // Fermer le modal après succès
     showExportModal.value = false
+    
+    // Afficher une notification de succès
+    notify.success('Export PDF', `Export PDF réussi pour ${selectedPatients.length} patients`)
+    
   } catch (error) {
     console.error('Erreur lors de l\'export PDF:', error)
+    
+    // Afficher une notification d'erreur
+    notify.error('Erreur Export PDF', `Erreur lors de l'export PDF: ${error instanceof Error ? error.message : 'Erreur inconnue'}`)
   }
 }
 
@@ -602,4 +616,6 @@ onMounted(() => {
 .subtitle-light {
   @apply text-slate-600 dark:text-slate-400;
 }
+
+
 </style> 

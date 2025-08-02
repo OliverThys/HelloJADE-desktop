@@ -263,6 +263,9 @@
         </main>
       </div>
     </div>
+
+    <!-- Système de notifications global -->
+    <NotificationToast ref="notificationRef" />
   </div>
 </template>
 
@@ -294,6 +297,8 @@ import {
 import { useAuthStore, useUserStore, usePatientsStore, useCallsStore, useMonitoringStore } from '@/stores'
 import { setupRouterGuards } from '@/router'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
+import NotificationToast from '@/components/NotificationToast.vue'
+import { setNotificationInstance } from '@/composables/useNotifications'
 
 const router = useRouter()
 const route = useRoute()
@@ -307,6 +312,7 @@ const showNotifications = ref(false)
 const showUserMenu = ref(false)
 const isDark = ref(false)
 const isInitializing = ref(true)
+const notificationRef = ref<InstanceType<typeof NotificationToast> | null>(null)
 
 const notifications = ref([
   {
@@ -478,6 +484,11 @@ onMounted(async () => {
   if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
     isDark.value = true
     document.documentElement.classList.add('dark')
+  }
+  
+  // Initialiser le système de notifications
+  if (notificationRef.value) {
+    setNotificationInstance(notificationRef.value)
   }
   
   // Initialiser l'application

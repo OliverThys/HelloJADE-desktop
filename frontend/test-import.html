@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Import jspdf-autotable</title>
+</head>
+<body>
+    <h1>Test Import jspdf-autotable</h1>
+    <button onclick="testImport()">Tester Import</button>
+    <div id="status"></div>
+
+    <script type="module">
+        async function testImport() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = 'Test en cours...';
+            
+            try {
+                // Test 1: Import de jsPDF
+                console.log('Test 1: Import jsPDF');
+                const { default: jsPDF } = await import('https://cdn.skypack.dev/jspdf');
+                console.log('✅ jsPDF importé avec succès');
+                
+                // Test 2: Import de jspdf-autotable
+                console.log('Test 2: Import jspdf-autotable');
+                const autoTableModule = await import('https://cdn.skypack.dev/jspdf-autotable');
+                const autoTable = autoTableModule.default;
+                console.log('✅ jspdf-autotable importé avec succès');
+                
+                // Test 3: Création d'un PDF simple
+                console.log('Test 3: Création PDF');
+                const doc = new jsPDF();
+                doc.text('Test HelloJADE', 20, 20);
+                
+                // Test 4: Utilisation d'autoTable
+                console.log('Test 4: Utilisation autoTable');
+                autoTable(doc, {
+                    startY: 40,
+                    head: [['Nom', 'Prénom']],
+                    body: [['Dupont', 'Jean'], ['Martin', 'Marie']],
+                    theme: 'grid'
+                });
+                
+                // Test 5: Sauvegarde
+                console.log('Test 5: Sauvegarde');
+                doc.save('test_import.pdf');
+                
+                statusDiv.innerHTML = '✅ Tous les tests réussis ! PDF généré.';
+                
+            } catch (error) {
+                console.error('❌ Erreur:', error);
+                statusDiv.innerHTML = '❌ Erreur: ' + error.message;
+            }
+        }
+        
+        // Exposer la fonction globalement
+        window.testImport = testImport;
+    </script>
+</body>
+</html> 

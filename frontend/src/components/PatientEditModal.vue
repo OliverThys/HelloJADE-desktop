@@ -60,8 +60,6 @@
                 />
               </div>
               
-
-              
               <div>
                 <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                   Numéro de sécurité sociale
@@ -153,8 +151,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, nextTick } from 'vue'
 import { XMarkIcon, CheckIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
+import { notify } from '@/composables/useNotifications'
 import type { Patient } from '@/stores/patients'
 
 interface Props {
@@ -170,6 +169,17 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const isLoading = ref(false)
+
+// Fonction utilitaire pour formater la date
+const formatDateForInput = (dateString: string): string => {
+  if (!dateString) return ''
+  try {
+    const date = new Date(dateString)
+    return date.toISOString().split('T')[0]
+  } catch {
+    return dateString
+  }
+}
 
 // Données du formulaire
 const formData = ref({
@@ -197,25 +207,11 @@ watch(() => props.patient, (newPatient) => {
   }
 }, { immediate: true })
 
-const formatDateForInput = (dateString: string): string => {
-  if (!dateString) return ''
-  try {
-    const date = new Date(dateString)
-    return date.toISOString().split('T')[0]
-  } catch {
-    return dateString
-  }
-}
-
 const savePatient = async () => {
   if (!props.patient) return
   
   try {
     isLoading.value = true
-    
-    // Simuler une sauvegarde (pour l'instant)
-    // TODO: Implémenter l'API de mise à jour
-    await new Promise(resolve => setTimeout(resolve, 1000))
     
     // Créer l'objet patient mis à jour
     const updatedPatient: Patient = {
@@ -232,6 +228,8 @@ const savePatient = async () => {
     
   } catch (error) {
     console.error('Erreur lors de la sauvegarde:', error)
+    // Afficher une notification d'erreur à l'utilisateur
+    notify.error('Erreur de sauvegarde', 'Erreur lors de la sauvegarde du patient')
   } finally {
     isLoading.value = false
   }

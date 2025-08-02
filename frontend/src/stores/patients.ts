@@ -279,21 +279,26 @@ export const usePatientsStore = defineStore('patients', () => {
       isLoading.value = true
       error.value = null
 
-      // TODO: Implémenter l'API de mise à jour
-      // const response = await api.put(`/api/patients/${patientId}`, patientData)
+      // Appel à l'API de mise à jour
+      const response = await api.put(`/api/patients/${patientId}`, patientData)
       
-      // Pour l'instant, simuler une mise à jour
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // Mettre à jour le patient dans la liste locale
-      const index = patients.value.findIndex(p => p.patient_id === patientId)
-      if (index !== -1) {
-        patients.value[index] = { ...patients.value[index], ...patientData }
-      }
-      
-      // Mettre à jour le patient courant si c'est le même
-      if (currentPatient.value && currentPatient.value.patient_id === patientId) {
-        currentPatient.value = { ...currentPatient.value, ...patientData }
+      if (response.data.success) {
+        const updatedPatient = response.data.data
+        
+        // Mettre à jour le patient dans la liste locale
+        const index = patients.value.findIndex(p => p.patient_id === patientId)
+        if (index !== -1) {
+          patients.value[index] = updatedPatient
+        }
+        
+        // Mettre à jour le patient courant si c'est le même
+        if (currentPatient.value && currentPatient.value.patient_id === patientId) {
+          currentPatient.value = updatedPatient
+        }
+        
+        console.log('✅ Patient mis à jour avec succès:', patientId)
+      } else {
+        throw new Error(response.data.error || 'Erreur lors de la mise à jour')
       }
       
     } catch (err) {
