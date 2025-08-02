@@ -6,6 +6,7 @@ const cors = require('cors')
 const path = require('path')
 const authRoutes = require('./routes/auth')
 const { router: monitoringRoutes } = require('./routes/monitoring')
+const patientsRoutes = require('./routes/patients')
 const syncService = require('./sync-service')
 
 const app = express()
@@ -19,6 +20,7 @@ app.use(express.urlencoded({ extended: true }))
 // Routes API
 app.use('/api/auth', authRoutes)
 app.use('/api/monitoring', monitoringRoutes)
+app.use('/api/patients', patientsRoutes)
 
 // Routes de synchronisation
 app.get('/api/sync/status', (req, res) => {

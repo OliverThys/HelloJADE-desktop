@@ -1,0 +1,22 @@
+ID,Nom,Prénom,Date de naissance,Sexe,Adresse,Téléphone,Email,Numéro de sécurité sociale,Âge
+18,"Anderson","Michael",Fri Aug 21 1981 00:00:00 GMT+0200 (heure d’été d’Europe centrale),M   ,"34 Rue de la République, Brest",02-98-23-45-67,michael.anderson@email.fr,1810821789012,43
+15,"Brown","Jennifer",Sun May 29 1994 00:00:00 GMT+0200 (heure d’été d’Europe centrale),F   ,"45 Avenue Foch, Angers",02-41-12-34-56,jennifer.brown@email.fr,2940529890123,31
+16,"Davis","Christopher",Wed Jan 17 1973 00:00:00 GMT+0100 (heure normale d’Europe centrale),M   ,"23 Rue Nationale, Le Mans",02-43-78-90-12,christopher.davis@email.fr,1730117123456,52
+8,"Dubois","Michel",Fri Aug 14 1970 00:00:00 GMT+0100 (heure normale d’Europe centrale),M   ,"67 Place Wilson, Clermont-Ferrand",04-73-56-78-90,michel.dubois@email.fr,1700814456789,54
+1,"Durand","Jean",Thu May 15 1980 00:00:00 GMT+0200 (heure d’été d’Europe centrale),M   ,"123 Rue de la Paix, Paris",01-98-76-54-01,jean.durand@email.fr,1800515123456,45
+9,"Garcia","Carmen",Wed Dec 07 1983 00:00:00 GMT+0100 (heure normale d’Europe centrale),F   ,"89 Rue de la Paix, Montpellier",04-67-23-45-67,carmen.garcia@email.fr,2831207789123,41
+12,"Gonzalez","Roberto",Sat Feb 28 1976 00:00:00 GMT+0100 (heure normale d’Europe centrale),M   ,"56 Boulevard Haussmann, Metz",03-87-90-12-34,roberto.gonzalez@email.fr,1760228901234,49
+20,"Jackson","Ryan",Fri Nov 26 1993 00:00:00 GMT+0100 (heure normale d’Europe centrale),M   ,"89 Avenue de la Gare, Limoges",05-55-34-56-78,ryan.jackson@email.fr,1931126345678,31
+14,"Johnson","David",Tue Oct 05 1982 00:00:00 GMT+0100 (heure normale d’Europe centrale),M   ,"90 Place Bellecour, Orléans",02-38-67-89-01,david.johnson@email.fr,1821005567890,42
+4,"Legrand","Antoine",Sun Jan 12 1992 00:00:00 GMT+0100 (heure normale d’Europe centrale),M   ,"45 Rue des Lilas, Bordeaux",05-67-89-12-34,antoine.legrand@email.fr,1920112345678,33
+11,"Lopez","Isabella",Sun Sep 15 1991 00:00:00 GMT+0200 (heure d’été d’Europe centrale),F   ,"12 Rue Victor Hugo, Reims",03-26-45-67-89,isabella.lopez@email.fr,2910915678901,33
+2,"Martin","Claire",Mon Sep 22 1975 00:00:00 GMT+0100 (heure normale d’Europe centrale),F   ,"456 Avenue Victor Hugo, Lyon",01-98-76-54-02,claire.martin@email.fr,2750922654321,49
+10,"Martinez","Carlos",Sun Mar 22 1987 00:00:00 GMT+0100 (heure normale d’Europe centrale),M   ,"34 Avenue Jean Jaurès, Nice",04-93-78-90-12,carlos.martinez@email.fr,1870322345678,38
+17,"Miller","Amanda",Sat Dec 03 1988 00:00:00 GMT+0100 (heure normale d’Europe centrale),F   ,"67 Boulevard Saint-Germain, Caen",02-31-45-67-89,amanda.miller@email.fr,2881203456789,36
+3,"Petit","Lucas",Mon Mar 08 2010 00:00:00 GMT+0100 (heure normale d’Europe centrale),M   ,"789 Boulevard Saint-Michel, Marseille",01-98-76-54-03,lucas.petit@email.fr,1100308987654,15
+7,"Richard","Julie",Tue Apr 18 1995 00:00:00 GMT+0200 (heure d’été d’Europe centrale),F   ,"23 Rue du Marché, Dijon",03-80-12-34-56,julie.richard@email.fr,2950418123789,30
+6,"Robert","Paul",Thu Nov 30 1978 00:00:00 GMT+0100 (heure normale d’Europe centrale),M   ,"156 Boulevard Voltaire, Rennes",02-99-87-65-43,paul.robert@email.fr,1781130654321,46
+19,"Taylor","Lisa",Mon Apr 14 1986 00:00:00 GMT+0200 (heure d’été d’Europe centrale),F   ,"12 Place du Capitole, Poitiers",05-49-67-89-01,lisa.taylor@email.fr,2860414012345,39
+5,"Thomas","Marie",Tue Jun 25 1985 00:00:00 GMT+0200 (heure d’été d’Europe centrale),F   ,"78 Avenue de la Liberté, Lille",03-21-45-67-89,marie.thomas@email.fr,2850625987654,40
+21,"Thys","Oliver",Fri Mar 15 1985 00:00:00 GMT+0100 (heure normale d’Europe centrale),M   ,"42 Rue des Champs, Mons",+32-65-12-34-56,oliver.thys@email.be,1850315123456,40
+13,"Wilson","Sarah",Tue Jul 11 1989 00:00:00 GMT+0200 (heure d’été d’Europe centrale),F   ,"78 Rue de Rivoli, Tours",02-47-34-56-78,sarah.wilson@email.fr,2890711234567,36
