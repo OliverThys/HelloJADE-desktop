@@ -216,11 +216,108 @@
                 </div>
               </div>
 
+              <!-- Bouton de synchronisation pour HelloJADE PostgreSQL -->
+              <div v-if="service.id === 'hellojade-db'" class="service-actions">
+                <button 
+                  @click="triggerManualSync" 
+                  :disabled="isSyncing"
+                  class="sync-button"
+                  :class="{ 'syncing': isSyncing }"
+                >
+                  <svg v-if="!isSyncing" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  <svg v-else class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  {{ isSyncing ? 'Synchronisation...' : 'Synchroniser' }}
+                </button>
+                
+                <!-- Détails de synchronisation -->
+                <div v-if="service.syncStatus" class="sync-details">
+                  <div class="sync-status" :class="{ 'up-to-date': service.syncStatus.isUpToDate }">
+                    <span class="sync-indicator" :class="{ 'synced': service.syncStatus.isUpToDate }"></span>
+                    {{ service.syncStatus.message }}
+                  </div>
+                  <div class="sync-info">
+                    <span>Dernière sync: {{ formatSyncTime(service.syncStatus.lastSyncTime) }}</span>
+                    <span v-if="service.syncStatus.syncAgeMinutes !== null">
+                      (il y a {{ service.syncStatus.syncAgeMinutes }} min)
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               <div v-if="service.errorMessage" class="service-error">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <span>{{ service.errorMessage }}</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Logs de synchronisation en direct -->
+        <section class="dashboard-section logs-section xl:col-span-2">
+          <div class="section-header">
+            <div class="section-title-group">
+              <h2 class="section-title">Logs de Synchronisation</h2>
+              <p class="section-description">Suivi en temps réel des opérations de synchronisation</p>
+            </div>
+            <div class="section-actions">
+              <button class="section-action-btn" @click="clearLogs">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+              <button class="section-action-btn" @click="copyLogs">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="logs-container">
+            <div class="logs-header">
+              <div class="logs-controls">
+                <label class="logs-toggle">
+                  <input type="checkbox" v-model="autoScroll" />
+                  <span>Défilement automatique</span>
+                </label>
+                <span class="logs-count">{{ syncLogs.length }} entrées</span>
+              </div>
+            </div>
+            
+            <div ref="logsContainer" class="logs-content">
+              <div 
+                v-for="(log, index) in syncLogs" 
+                :key="index"
+                class="log-entry"
+                :class="`log-${log.type}`"
+              >
+                <div class="log-timestamp">{{ formatLogTime(log.timestamp) }}</div>
+                <div class="log-icon">
+                  <svg v-if="log.type === 'success'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <svg v-else-if="log.type === 'error'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div class="log-message">{{ log.message }}</div>
+                <div v-if="log.duration" class="log-duration">{{ log.duration }}ms</div>
+              </div>
+              
+              <div v-if="syncLogs.length === 0" class="logs-empty">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <p>Aucun log de synchronisation disponible</p>
               </div>
             </div>
           </div>
@@ -377,6 +474,17 @@ const chartColors = {
 
 
 
+// Variables pour la synchronisation et les logs
+const isSyncing = ref(false)
+const syncLogs = ref<Array<{
+  timestamp: Date
+  type: 'info' | 'success' | 'error'
+  message: string
+  duration?: number
+}>>([])
+const autoScroll = ref(true)
+const logsContainer = ref<HTMLDivElement>()
+
 const hospitalDbService = computed(() => {
   return services.value?.find(service => service.id === 'hospital-db') || null
 })
@@ -388,6 +496,118 @@ const formatServiceLastCheck = (date: Date | undefined) => {
     hour: '2-digit',
     minute: '2-digit'
   }).format(date)
+}
+
+// Fonction pour formater le temps de synchronisation
+const formatSyncTime = (time: string | undefined) => {
+  if (!time || time === 'Jamais' || time === 'Erreur') return time
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date(time))
+}
+
+// Fonction pour formater le temps des logs
+const formatLogTime = (date: Date) => {
+  return new Intl.DateTimeFormat('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  }).format(date)
+}
+
+// Fonction pour ajouter un log
+const addLog = (type: 'info' | 'success' | 'error', message: string, duration?: number) => {
+  syncLogs.value.unshift({
+    timestamp: new Date(),
+    type,
+    message,
+    duration
+  })
+  
+  // Limiter à 100 logs
+  if (syncLogs.value.length > 100) {
+    syncLogs.value = syncLogs.value.slice(0, 100)
+  }
+  
+  // Auto-scroll
+  if (autoScroll.value) {
+    nextTick(() => {
+      if (logsContainer.value) {
+        logsContainer.value.scrollTop = 0
+      }
+    })
+  }
+}
+
+// Fonction pour déclencher la synchronisation manuelle
+const triggerManualSync = async () => {
+  if (isSyncing.value) return
+  
+  isSyncing.value = true
+  addLog('info', '🔄 Démarrage de la synchronisation manuelle...')
+  
+  try {
+    const startTime = Date.now()
+    
+    const response = await fetch('/api/monitoring/hellojade-db/sync', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    const result = await response.json()
+    const duration = Date.now() - startTime
+    
+    if (result.success) {
+      addLog('success', `✅ ${result.message}`, duration)
+      
+      // Ajouter les détails par table
+      if (result.results) {
+        Object.entries(result.results).forEach(([table, tableResult]: [string, any]) => {
+          if (tableResult.success) {
+            addLog('success', `📊 ${table}: ${tableResult.message}`)
+          } else {
+            addLog('error', `❌ ${table}: ${tableResult.message}`)
+          }
+        })
+      }
+      
+      // Rafraîchir le statut du service
+      await monitoringStore.checkServiceStatus('hellojade-db')
+      
+    } else {
+      addLog('error', `❌ Erreur: ${result.error || 'Synchronisation échouée'}`, duration)
+    }
+    
+  } catch (error: any) {
+    addLog('error', `❌ Erreur réseau: ${error.message}`)
+  } finally {
+    isSyncing.value = false
+  }
+}
+
+// Fonction pour effacer les logs
+const clearLogs = () => {
+  syncLogs.value = []
+}
+
+// Fonction pour copier les logs
+const copyLogs = async () => {
+  const logsText = syncLogs.value
+    .map(log => `[${formatLogTime(log.timestamp)}] ${log.type.toUpperCase()}: ${log.message}${log.duration ? ` (${log.duration}ms)` : ''}`)
+    .join('\n')
+  
+  try {
+    await navigator.clipboard.writeText(logsText)
+    addLog('success', '📋 Logs copiés dans le presse-papiers')
+  } catch (error) {
+    addLog('error', '❌ Impossible de copier les logs')
+  }
 }
 
 // Fonction pour dessiner un graphique en ligne
@@ -887,7 +1107,153 @@ onMounted(async () => {
 }
 
 .overview-title {
-  @apply text-sm font-medium text-slate-700 dark:text-slate-300;
+  @apply text-sm font-medium text-slate-600 dark:text-slate-400 mb-1;
+}
+
+.overview-status {
+  @apply text-lg font-semibold;
+}
+
+.overview-status.status-online {
+  @apply text-green-600 dark:text-green-400;
+}
+
+.overview-status.status-warning {
+  @apply text-yellow-600 dark:text-yellow-400;
+}
+
+.overview-status.status-offline {
+  @apply text-red-600 dark:text-red-400;
+}
+
+.overview-value {
+  @apply text-lg font-semibold text-slate-900 dark:text-white;
+}
+
+/* Service Actions */
+.service-actions {
+  @apply mt-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg;
+}
+
+.sync-button {
+  @apply flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium transition-colors duration-200;
+}
+
+.sync-button.syncing {
+  @apply bg-blue-500 cursor-not-allowed;
+}
+
+.sync-details {
+  @apply mt-3 space-y-2;
+}
+
+.sync-status {
+  @apply flex items-center space-x-2 text-sm;
+}
+
+.sync-status.up-to-date {
+  @apply text-green-600 dark:text-green-400;
+}
+
+.sync-indicator {
+  @apply w-2 h-2 rounded-full;
+}
+
+.sync-indicator.synced {
+  @apply bg-green-500;
+}
+
+.sync-info {
+  @apply text-xs text-slate-500 dark:text-slate-400;
+}
+
+/* Logs Section */
+.logs-section {
+  @apply xl:col-span-2;
+}
+
+.logs-container {
+  @apply p-6;
+}
+
+.logs-header {
+  @apply flex items-center justify-between mb-4;
+}
+
+.logs-controls {
+  @apply flex items-center space-x-4;
+}
+
+.logs-toggle {
+  @apply flex items-center space-x-2 text-sm text-slate-600 dark:text-slate-400;
+}
+
+.logs-toggle input[type="checkbox"] {
+  @apply w-4 h-4 text-blue-600 bg-slate-100 border-slate-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-slate-800 focus:ring-2 dark:bg-slate-700 dark:border-slate-600;
+}
+
+.logs-count {
+  @apply text-sm text-slate-500 dark:text-slate-400;
+}
+
+.logs-content {
+  @apply bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 max-h-96 overflow-y-auto;
+}
+
+.log-entry {
+  @apply flex items-center space-x-3 p-3 border-b border-slate-200 dark:border-slate-700 last:border-b-0;
+}
+
+.log-entry.log-success {
+  @apply bg-green-50 dark:bg-green-900/20;
+}
+
+.log-entry.log-error {
+  @apply bg-red-50 dark:bg-red-900/20;
+}
+
+.log-entry.log-info {
+  @apply bg-blue-50 dark:bg-blue-900/20;
+}
+
+.log-timestamp {
+  @apply text-xs text-slate-500 dark:text-slate-400 font-mono min-w-[60px];
+}
+
+.log-icon {
+  @apply flex-shrink-0;
+}
+
+.log-entry.log-success .log-icon {
+  @apply text-green-600 dark:text-green-400;
+}
+
+.log-entry.log-error .log-icon {
+  @apply text-red-600 dark:text-red-400;
+}
+
+.log-entry.log-info .log-icon {
+  @apply text-blue-600 dark:text-blue-400;
+}
+
+.log-message {
+  @apply flex-1 text-sm text-slate-700 dark:text-slate-300;
+}
+
+.log-duration {
+  @apply text-xs text-slate-500 dark:text-slate-400 font-mono;
+}
+
+.logs-empty {
+  @apply flex flex-col items-center justify-center py-12 text-slate-500 dark:text-slate-400;
+}
+
+.logs-empty svg {
+  @apply mb-2;
+}
+
+.logs-empty p {
+  @apply text-sm;
 }
 
 .overview-status {

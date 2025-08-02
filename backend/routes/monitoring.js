@@ -110,25 +110,269 @@ const checkActiveDirectory = async () => {
   })
 }
 
-// Vérification base de données HelloJADE (PostgreSQL)
+// Vérification base de données HelloJADE (PostgreSQL) avec vérification de synchronisation
 const checkHelloJADEDatabase = async () => {
   const pool = new Pool(POSTGRES_CONFIG)
   
   try {
     const client = await pool.connect()
+    
+    // 1. Vérification de base PostgreSQL
     const result = await client.query('SELECT NOW() as current_time, version() as version')
+    
+    // 2. Vérification de la synchronisation avec Oracle
+    const syncStatus = await checkSyncStatus(client)
+    
+    // 3. Vérification des tables HelloJADE
+    const hellojadeTables = await checkHelloJADETables(client)
+    
     client.release()
     
     return {
-      status: 'online',
+      status: syncStatus.isUpToDate ? 'online' : 'warning',
       uptime: 99.7,
       version: result.rows[0].version.split(' ')[0],
-      message: 'Base de données HelloJADE opérationnelle'
+      syncStatus: syncStatus,
+      hellojadeTables: hellojadeTables,
+      message: syncStatus.isUpToDate 
+        ? 'Base de données HelloJADE synchronisée et opérationnelle'
+        : `Base de données HelloJADE opérationnelle mais synchronisation requise (dernière sync: ${syncStatus.lastSyncTime})`
     }
   } catch (error) {
     throw new Error(`Erreur de connexion PostgreSQL: ${error.message}`)
   } finally {
     await pool.end()
+  }
+}
+
+// Vérification du statut de synchronisation
+const checkSyncStatus = async (client) => {
+  try {
+    // Vérification du timestamp de synchronisation le plus récent
+    const syncResult = await client.query(`
+      SELECT 
+        MAX(sync_timestamp) as last_sync,
+        COUNT(*) as total_sync_records
+      FROM (
+        SELECT sync_timestamp FROM patients_sync
+        UNION ALL
+        SELECT sync_timestamp FROM medecins_sync
+        UNION ALL
+        SELECT sync_timestamp FROM services_sync
+        UNION ALL
+        SELECT sync_timestamp FROM chambres_sync
+        UNION ALL
+        SELECT sync_timestamp FROM hospitalisations_sync
+        UNION ALL
+        SELECT sync_timestamp FROM rendez_vous_sync
+        UNION ALL
+        SELECT sync_timestamp FROM telephones_sync
+      ) as all_syncs
+    `)
+    
+    const lastSync = syncResult.rows[0].last_sync
+    const totalSyncRecords = syncResult.rows[0].total_sync_records
+    
+    if (!lastSync) {
+      return {
+        isUpToDate: false,
+        lastSyncTime: 'Jamais',
+        syncAgeMinutes: null,
+        totalSyncRecords: 0,
+        message: 'Aucune synchronisation effectuée'
+      }
+    }
+    
+    const now = new Date()
+    console.log('🔍 Debug sync: now =', now.toISOString())
+    console.log('🔍 Debug sync: lastSync =', lastSync.toISOString())
+    
+    const syncAge = Math.floor((now - lastSync) / (1000 * 60)) // âge en minutes
+    console.log('🔍 Debug sync: syncAge =', syncAge, 'minutes')
+    
+    // Considérer comme à jour si synchronisé il y a moins de 10 minutes
+    const isUpToDate = syncAge <= 10
+    
+    return {
+      isUpToDate,
+      lastSyncTime: lastSync.toLocaleString('fr-FR'),
+      syncAgeMinutes: syncAge,
+      totalSyncRecords,
+      message: isUpToDate 
+        ? `Synchronisé il y a ${syncAge} minute(s)`
+        : `Dernière synchronisation il y a ${syncAge} minute(s)`
+    }
+    
+  } catch (error) {
+    console.error('Erreur lors de la vérification de synchronisation:', error)
+    return {
+      isUpToDate: false,
+      lastSyncTime: 'Erreur',
+      syncAgeMinutes: null,
+      totalSyncRecords: 0,
+      message: 'Erreur lors de la vérification de synchronisation'
+    }
+  }
+}
+
+// Vérification des tables HelloJADE
+const checkHelloJADETables = async (client) => {
+  try {
+    const tables = [
+      'call_logs',
+      'call_metrics', 
+      'call_statistics',
+      'user_activity',
+      'system_settings'
+    ]
+    
+    const tableStats = {}
+    
+    for (const tableName of tables) {
+      try {
+        const result = await client.query(`SELECT COUNT(*) as count FROM ${tableName}`)
+        tableStats[tableName] = result.rows[0].count
+      } catch (error) {
+        tableStats[tableName] = 0
+      }
+    }
+    
+    return tableStats
+    
+  } catch (error) {
+    console.error('Erreur lors de la vérification des tables HelloJADE:', error)
+    return {}
+  }
+}
+
+// Fonction de synchronisation manuelle optimisée
+const performManualSync = async () => {
+  let oracleConnection, postgresPool
+  
+  try {
+    console.log('🔄 Début de la synchronisation manuelle optimisée...')
+    
+    // Connexion Oracle
+    oracledb.initOracleClient()
+    oracleConnection = await oracledb.getConnection(ORACLE_CONFIG)
+    
+    // Connexion PostgreSQL avec pool optimisé
+    postgresPool = new Pool({
+      ...POSTGRES_CONFIG,
+      max: 20, // Augmenter le pool de connexions
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 2000,
+    })
+    
+    const startTime = Date.now()
+    
+    // Récupération des tables Oracle
+    const tablesResult = await oracleConnection.execute(`
+      SELECT table_name 
+      FROM user_tables 
+      ORDER BY table_name
+    `)
+    
+    const oracleTables = tablesResult.rows.map(row => row[0])
+    const syncResults = {}
+    
+    // Synchronisation optimisée de chaque table
+    for (const tableName of oracleTables) {
+      const tableStartTime = Date.now()
+      console.log(`📥 Synchronisation optimisée de ${tableName}...`)
+      
+      try {
+        const postgresClient = await postgresPool.connect()
+        
+        // Récupération des données par batch
+        const batchSize = 1000
+        let offset = 0
+        let totalRecords = 0
+        
+        // Suppression des anciennes données
+        await postgresClient.query(`DELETE FROM ${tableName.toLowerCase()}_sync`)
+        
+        // Mise à jour du timestamp de synchronisation (heure locale)
+        const currentTimestamp = new Date()
+        
+        while (true) {
+          const dataResult = await oracleConnection.execute(`
+            SELECT * FROM ${tableName} 
+            ORDER BY ROWID 
+            OFFSET :offset ROWS FETCH NEXT :batchSize ROWS ONLY
+          `, [offset, batchSize])
+          
+          if (dataResult.rows.length === 0) break
+          
+          // Insertion optimisée par batch avec timestamp explicite
+          const columns = dataResult.metaData.map(col => col.name.toLowerCase())
+          const placeholders = dataResult.rows[0].map((_, i) => `$${i + 1}`).join(', ')
+          const insertSQL = `INSERT INTO ${tableName.toLowerCase()}_sync (${columns.join(', ')}, sync_timestamp) VALUES (${placeholders}, $${dataResult.rows[0].length + 1})`
+          
+          // Insertion par batch avec Promise.all pour paralléliser
+          const insertPromises = dataResult.rows.map(row => 
+            postgresClient.query(insertSQL, [...row, currentTimestamp])
+          )
+          
+          await Promise.all(insertPromises)
+          
+          totalRecords += dataResult.rows.length
+          offset += batchSize
+          
+          console.log(`   📊 Batch traité: ${dataResult.rows.length} enregistrements (Total: ${totalRecords})`)
+        }
+        
+        postgresClient.release()
+        
+        const tableDuration = Date.now() - tableStartTime
+        syncResults[tableName] = {
+          success: true,
+          recordsCount: totalRecords,
+          duration: tableDuration,
+          throughput: Math.round(totalRecords / (tableDuration / 1000)),
+          message: `${totalRecords} enregistrements synchronisés en ${tableDuration}ms (${Math.round(totalRecords / (tableDuration / 1000))} rec/sec)`
+        }
+        
+      } catch (error) {
+        console.error(`❌ Erreur synchronisation ${tableName}:`, error.message)
+        syncResults[tableName] = {
+          success: false,
+          recordsCount: 0,
+          duration: 0,
+          message: `Erreur: ${error.message}`
+        }
+      }
+    }
+    
+    const totalDuration = Date.now() - startTime
+    
+    return {
+      success: true,
+      timestamp: new Date().toISOString(),
+      totalDuration,
+      message: `Synchronisation optimisée terminée en ${totalDuration}ms`,
+      results: syncResults
+    }
+    
+  } catch (error) {
+    console.error('❌ Erreur lors de la synchronisation optimisée:', error)
+    return {
+      success: false,
+      timestamp: new Date().toISOString(),
+      message: `Erreur de synchronisation: ${error.message}`,
+      results: {}
+    }
+  } finally {
+    if (oracleConnection) {
+      try {
+        await oracleConnection.close()
+      } catch (error) {
+        console.error('Erreur fermeture Oracle:', error)
+      }
+    }
+    if (postgresPool) {
+      await postgresPool.end()
+    }
   }
 }
 
@@ -302,6 +546,8 @@ router.get('/hellojade-db', async (req, res) => {
         responseTime: result.responseTime,
         uptime: result.uptime,
         version: result.version,
+        syncStatus: result.syncStatus,
+        hellojadeTables: result.hellojadeTables,
         message: result.message
       })
     } else {
@@ -314,6 +560,37 @@ router.get('/hellojade-db', async (req, res) => {
   } catch (error) {
     res.status(500).json({
       status: 'offline',
+      error: error.message
+    })
+  }
+})
+
+// Route pour la synchronisation manuelle
+router.post('/hellojade-db/sync', async (req, res) => {
+  try {
+    console.log('🔄 Synchronisation manuelle demandée...')
+    
+    const result = await performManualSync()
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        timestamp: result.timestamp,
+        message: result.message,
+        results: result.results
+      })
+    } else {
+      res.status(500).json({
+        success: false,
+        timestamp: result.timestamp,
+        error: result.message
+      })
+    }
+  } catch (error) {
+    console.error('❌ Erreur synchronisation manuelle:', error)
+    res.status(500).json({
+      success: false,
+      timestamp: new Date().toISOString(),
       error: error.message
     })
   }
@@ -455,4 +732,8 @@ router.get('/system-metrics', async (req, res) => {
   }
 })
 
-module.exports = router
+module.exports = { 
+  router,
+  checkHelloJADEDatabase,
+  performManualSync
+}

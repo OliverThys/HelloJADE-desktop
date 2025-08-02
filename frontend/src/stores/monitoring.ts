@@ -2,6 +2,14 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { api } from '@/utils/api'
 
+export interface SyncStatus {
+  isUpToDate: boolean
+  lastSyncTime: string
+  syncAgeMinutes: number | null
+  totalSyncRecords: number
+  message: string
+}
+
 export interface ServiceStatus {
   id: string
   name: string
@@ -12,6 +20,7 @@ export interface ServiceStatus {
   uptime?: number
   errorMessage?: string
   icon: string
+  syncStatus?: SyncStatus
   details?: {
     totalRecords?: number
     tableStats?: Record<string, number>
@@ -252,6 +261,11 @@ export const useMonitoringStore = defineStore('monitoring', () => {
           activeHospitalizations: response.data.activeHospitalizations,
           currentTime: response.data.currentTime
         }
+      }
+      
+      // Ajouter les informations de synchronisation pour HelloJADE PostgreSQL
+      if (serviceId === 'hellojade-db' && response.data.syncStatus) {
+        service.syncStatus = response.data.syncStatus
       }
 
     } catch (error: any) {
