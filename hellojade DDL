@@ -1,0 +1,1339 @@
+--
+-- PostgreSQL database dump
+--
+
+-- Dumped from database version 15.13
+-- Dumped by pg_dump version 17.5
+
+-- Started on 2025-08-02 21:00:42
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET transaction_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- TOC entry 4 (class 2615 OID 2200)
+-- Name: public; Type: SCHEMA; Schema: -; Owner: pg_database_owner
+--
+
+CREATE SCHEMA public;
+
+
+ALTER SCHEMA public OWNER TO pg_database_owner;
+
+--
+-- TOC entry 3590 (class 0 OID 0)
+-- Dependencies: 4
+-- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: pg_database_owner
+--
+
+COMMENT ON SCHEMA public IS 'standard public schema';
+
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- TOC entry 238 (class 1259 OID 32815)
+-- Name: asterisk_call_logs; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.asterisk_call_logs (
+    id integer NOT NULL,
+    call_id integer,
+    unique_id character varying(50) NOT NULL,
+    channel character varying(100),
+    caller_id character varying(50),
+    dialed_number character varying(50),
+    start_time timestamp without time zone,
+    end_time timestamp without time zone,
+    duration integer,
+    disposition character varying(20),
+    recording_file character varying(255),
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE public.asterisk_call_logs OWNER TO postgres;
+
+--
+-- TOC entry 237 (class 1259 OID 32814)
+-- Name: asterisk_call_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.asterisk_call_logs_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.asterisk_call_logs_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 3591 (class 0 OID 0)
+-- Dependencies: 237
+-- Name: asterisk_call_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.asterisk_call_logs_id_seq OWNED BY public.asterisk_call_logs.id;
+
+
+--
+-- TOC entry 234 (class 1259 OID 32784)
+-- Name: call_issues; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.call_issues (
+    id integer NOT NULL,
+    call_id integer NOT NULL,
+    type_probleme character varying(50) NOT NULL,
+    priorite character varying(20) DEFAULT 'MOYENNE'::character varying,
+    description text NOT NULL,
+    statut character varying(20) DEFAULT 'OUVERT'::character varying,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE public.call_issues OWNER TO postgres;
+
+--
+-- TOC entry 233 (class 1259 OID 32783)
+-- Name: call_issues_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.call_issues_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.call_issues_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 3592 (class 0 OID 0)
+-- Dependencies: 233
+-- Name: call_issues_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.call_issues_id_seq OWNED BY public.call_issues.id;
+
+
+--
+-- TOC entry 222 (class 1259 OID 24635)
+-- Name: call_logs; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.call_logs (
+    id integer NOT NULL,
+    patient_id integer,
+    medecin_id integer,
+    call_start_time timestamp without time zone,
+    call_end_time timestamp without time zone,
+    call_duration integer,
+    call_status character varying(20),
+    phone_number character varying(20),
+    call_type character varying(20),
+    notes text,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE public.call_logs OWNER TO postgres;
+
+--
+-- TOC entry 221 (class 1259 OID 24634)
+-- Name: call_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.call_logs_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.call_logs_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 3593 (class 0 OID 0)
+-- Dependencies: 221
+-- Name: call_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.call_logs_id_seq OWNED BY public.call_logs.id;
+
+
+--
+-- TOC entry 224 (class 1259 OID 24645)
+-- Name: call_metrics; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.call_metrics (
+    id integer NOT NULL,
+    patient_id integer,
+    total_calls integer DEFAULT 0,
+    successful_calls integer DEFAULT 0,
+    failed_calls integer DEFAULT 0,
+    total_duration integer DEFAULT 0,
+    average_duration numeric(5,2) DEFAULT 0,
+    last_call_date timestamp without time zone,
+    call_frequency character varying(20),
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE public.call_metrics OWNER TO postgres;
+
+--
+-- TOC entry 223 (class 1259 OID 24644)
+-- Name: call_metrics_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.call_metrics_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.call_metrics_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 3594 (class 0 OID 0)
+-- Dependencies: 223
+-- Name: call_metrics_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.call_metrics_id_seq OWNED BY public.call_metrics.id;
+
+
+--
+-- TOC entry 236 (class 1259 OID 32802)
+-- Name: call_settings; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.call_settings (
+    id integer NOT NULL,
+    key character varying(100) NOT NULL,
+    value text NOT NULL,
+    description text,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE public.call_settings OWNER TO postgres;
+
+--
+-- TOC entry 235 (class 1259 OID 32801)
+-- Name: call_settings_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.call_settings_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.call_settings_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 3595 (class 0 OID 0)
+-- Dependencies: 235
+-- Name: call_settings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.call_settings_id_seq OWNED BY public.call_settings.id;
+
+
+--
+-- TOC entry 226 (class 1259 OID 24659)
+-- Name: call_statistics; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.call_statistics (
+    id integer NOT NULL,
+    date date,
+    total_calls integer DEFAULT 0,
+    successful_calls integer DEFAULT 0,
+    failed_calls integer DEFAULT 0,
+    average_duration numeric(5,2) DEFAULT 0,
+    peak_hour integer,
+    most_active_service character varying(50),
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE public.call_statistics OWNER TO postgres;
+
+--
+-- TOC entry 225 (class 1259 OID 24658)
+-- Name: call_statistics_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.call_statistics_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.call_statistics_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 3596 (class 0 OID 0)
+-- Dependencies: 225
+-- Name: call_statistics_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.call_statistics_id_seq OWNED BY public.call_statistics.id;
+
+
+--
+-- TOC entry 232 (class 1259 OID 32770)
+-- Name: calls; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.calls (
+    id integer NOT NULL,
+    patient_id integer NOT NULL,
+    numero_patient character varying(20) NOT NULL,
+    nom character varying(100) NOT NULL,
+    prenom character varying(100) NOT NULL,
+    date_naissance date NOT NULL,
+    telephone character varying(20) NOT NULL,
+    site_hospitalisation character varying(100),
+    date_sortie_hospitalisation date,
+    date_heure_prevue timestamp without time zone NOT NULL,
+    statut_appel character varying(20) DEFAULT 'A_APPELER'::character varying,
+    medecin_referent character varying(100),
+    service_hospitalisation character varying(100),
+    date_heure_reelle timestamp without time zone,
+    duree_appel integer,
+    resume_appel text,
+    score_calcule integer,
+    nombre_tentatives integer DEFAULT 0,
+    max_tentatives integer DEFAULT 3,
+    dialogue_result jsonb,
+    audio_file_path character varying(255),
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE public.calls OWNER TO postgres;
+
+--
+-- TOC entry 231 (class 1259 OID 32769)
+-- Name: calls_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.calls_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.calls_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 3597 (class 0 OID 0)
+-- Dependencies: 231
+-- Name: calls_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.calls_id_seq OWNED BY public.calls.id;
+
+
+--
+-- TOC entry 214 (class 1259 OID 24585)
+-- Name: chambres_sync; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.chambres_sync (
+    chambre_id numeric NOT NULL,
+    numero_chambre character varying(40) NOT NULL,
+    service_id numeric NOT NULL,
+    type_chambre character varying(80),
+    prix_jour numeric(6,2),
+    occupee character(4),
+    created_date timestamp without time zone,
+    sync_timestamp timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    sync_source character varying(50) DEFAULT 'oracle'::character varying
+);
+
+
+ALTER TABLE public.chambres_sync OWNER TO postgres;
+
+--
+-- TOC entry 215 (class 1259 OID 24592)
+-- Name: hospitalisations_sync; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.hospitalisations_sync (
+    hospitalisation_id numeric NOT NULL,
+    patient_id numeric NOT NULL,
+    chambre_id numeric NOT NULL,
+    medecin_id numeric NOT NULL,
+    date_entree timestamp without time zone NOT NULL,
+    date_sortie timestamp without time zone,
+    motif character varying(2000),
+    diagnostic character varying(2000),
+    statut character varying(80),
+    created_date timestamp without time zone,
+    sync_timestamp timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    sync_source character varying(50) DEFAULT 'oracle'::character varying
+);
+
+
+ALTER TABLE public.hospitalisations_sync OWNER TO postgres;
+
+--
+-- TOC entry 216 (class 1259 OID 24599)
+-- Name: medecins_sync; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.medecins_sync (
+    medecin_id numeric NOT NULL,
+    nom character varying(200) NOT NULL,
+    prenom character varying(200) NOT NULL,
+    specialite character varying(400),
+    service_id numeric,
+    telephone character varying(60),
+    email character varying(400),
+    date_embauche timestamp without time zone,
+    salaire numeric(8,2),
+    created_date timestamp without time zone,
+    sync_timestamp timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    sync_source character varying(50) DEFAULT 'oracle'::character varying
+);
+
+
+ALTER TABLE public.medecins_sync OWNER TO postgres;
+
+--
+-- TOC entry 217 (class 1259 OID 24606)
+-- Name: patients_sync; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.patients_sync (
+    patient_id numeric NOT NULL,
+    nom character varying(200) NOT NULL,
+    prenom character varying(200) NOT NULL,
+    date_naissance timestamp without time zone NOT NULL,
+    sexe character(4),
+    adresse character varying(800),
+    telephone character varying(60),
+    email character varying(400),
+    numero_secu character varying(60),
+    created_date timestamp without time zone,
+    sync_timestamp timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    sync_source character varying(50) DEFAULT 'oracle'::character varying
+);
+
+
+ALTER TABLE public.patients_sync OWNER TO postgres;
+
+--
+-- TOC entry 218 (class 1259 OID 24613)
+-- Name: rendez_vous_sync; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.rendez_vous_sync (
+    rdv_id numeric NOT NULL,
+    patient_id numeric NOT NULL,
+    medecin_id numeric NOT NULL,
+    date_rdv timestamp without time zone NOT NULL,
+    heure_rdv character varying(20) NOT NULL,
+    motif character varying(800),
+    statut character varying(80),
+    notes character varying(2000),
+    created_date timestamp without time zone,
+    sync_timestamp timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    sync_source character varying(50) DEFAULT 'oracle'::character varying
+);
+
+
+ALTER TABLE public.rendez_vous_sync OWNER TO postgres;
+
+--
+-- TOC entry 219 (class 1259 OID 24620)
+-- Name: services_sync; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.services_sync (
+    service_id numeric NOT NULL,
+    nom_service character varying(400) NOT NULL,
+    chef_service character varying(400),
+    nombre_lits numeric,
+    telephone character varying(60),
+    etage numeric,
+    created_date timestamp without time zone,
+    sync_timestamp timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    sync_source character varying(50) DEFAULT 'oracle'::character varying
+);
+
+
+ALTER TABLE public.services_sync OWNER TO postgres;
+
+--
+-- TOC entry 230 (class 1259 OID 24681)
+-- Name: system_settings; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.system_settings (
+    id integer NOT NULL,
+    setting_key character varying(100) NOT NULL,
+    setting_value text,
+    setting_type character varying(20) DEFAULT 'string'::character varying,
+    description text,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE public.system_settings OWNER TO postgres;
+
+--
+-- TOC entry 229 (class 1259 OID 24680)
+-- Name: system_settings_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.system_settings_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.system_settings_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 3598 (class 0 OID 0)
+-- Dependencies: 229
+-- Name: system_settings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.system_settings_id_seq OWNED BY public.system_settings.id;
+
+
+--
+-- TOC entry 220 (class 1259 OID 24627)
+-- Name: telephones_sync; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.telephones_sync (
+    telephone_id numeric NOT NULL,
+    patient_id numeric,
+    medecin_id numeric,
+    type_telephone character varying(80),
+    numero_telephone character varying(80) NOT NULL,
+    pays character varying(20),
+    principal character(4),
+    created_date timestamp without time zone,
+    sync_timestamp timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    sync_source character varying(50) DEFAULT 'oracle'::character varying
+);
+
+
+ALTER TABLE public.telephones_sync OWNER TO postgres;
+
+--
+-- TOC entry 228 (class 1259 OID 24671)
+-- Name: user_activity; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.user_activity (
+    id integer NOT NULL,
+    user_id character varying(50),
+    action_type character varying(50),
+    action_details jsonb,
+    ip_address inet,
+    user_agent text,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE public.user_activity OWNER TO postgres;
+
+--
+-- TOC entry 227 (class 1259 OID 24670)
+-- Name: user_activity_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.user_activity_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.user_activity_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 3599 (class 0 OID 0)
+-- Dependencies: 227
+-- Name: user_activity_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.user_activity_id_seq OWNED BY public.user_activity.id;
+
+
+--
+-- TOC entry 3377 (class 2604 OID 32818)
+-- Name: asterisk_call_logs id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.asterisk_call_logs ALTER COLUMN id SET DEFAULT nextval('public.asterisk_call_logs_id_seq'::regclass);
+
+
+--
+-- TOC entry 3369 (class 2604 OID 32787)
+-- Name: call_issues id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.call_issues ALTER COLUMN id SET DEFAULT nextval('public.call_issues_id_seq'::regclass);
+
+
+--
+-- TOC entry 3342 (class 2604 OID 24638)
+-- Name: call_logs id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.call_logs ALTER COLUMN id SET DEFAULT nextval('public.call_logs_id_seq'::regclass);
+
+
+--
+-- TOC entry 3344 (class 2604 OID 24648)
+-- Name: call_metrics id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.call_metrics ALTER COLUMN id SET DEFAULT nextval('public.call_metrics_id_seq'::regclass);
+
+
+--
+-- TOC entry 3374 (class 2604 OID 32805)
+-- Name: call_settings id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.call_settings ALTER COLUMN id SET DEFAULT nextval('public.call_settings_id_seq'::regclass);
+
+
+--
+-- TOC entry 3352 (class 2604 OID 24662)
+-- Name: call_statistics id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.call_statistics ALTER COLUMN id SET DEFAULT nextval('public.call_statistics_id_seq'::regclass);
+
+
+--
+-- TOC entry 3363 (class 2604 OID 32773)
+-- Name: calls id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.calls ALTER COLUMN id SET DEFAULT nextval('public.calls_id_seq'::regclass);
+
+
+--
+-- TOC entry 3360 (class 2604 OID 24684)
+-- Name: system_settings id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.system_settings ALTER COLUMN id SET DEFAULT nextval('public.system_settings_id_seq'::regclass);
+
+
+--
+-- TOC entry 3358 (class 2604 OID 24674)
+-- Name: user_activity id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.user_activity ALTER COLUMN id SET DEFAULT nextval('public.user_activity_id_seq'::regclass);
+
+
+--
+-- TOC entry 3584 (class 0 OID 32815)
+-- Dependencies: 238
+-- Data for Name: asterisk_call_logs; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+
+
+--
+-- TOC entry 3580 (class 0 OID 32784)
+-- Dependencies: 234
+-- Data for Name: call_issues; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+
+
+--
+-- TOC entry 3568 (class 0 OID 24635)
+-- Dependencies: 222
+-- Data for Name: call_logs; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+INSERT INTO public.call_logs (id, patient_id, medecin_id, call_start_time, call_end_time, call_duration, call_status, phone_number, call_type, notes, created_at) VALUES (1, 1, 1, '2024-01-15 09:30:00', '2024-01-15 09:45:00', 900, 'completed', '0123456789', 'outgoing', 'Appel de suivi', '2025-08-02 07:50:44.150546');
+INSERT INTO public.call_logs (id, patient_id, medecin_id, call_start_time, call_end_time, call_duration, call_status, phone_number, call_type, notes, created_at) VALUES (2, 2, 3, '2024-01-15 10:15:00', '2024-01-15 10:20:00', 300, 'completed', '0987654321', 'incoming', 'Demande de rendez-vous', '2025-08-02 07:50:44.154069');
+INSERT INTO public.call_logs (id, patient_id, medecin_id, call_start_time, call_end_time, call_duration, call_status, phone_number, call_type, notes, created_at) VALUES (3, 3, 2, '2024-01-15 11:00:00', NULL, 0, 'missed', '0555666777', 'outgoing', 'Appel non répondu', '2025-08-02 07:50:44.15668');
+INSERT INTO public.call_logs (id, patient_id, medecin_id, call_start_time, call_end_time, call_duration, call_status, phone_number, call_type, notes, created_at) VALUES (4, 4, 5, '2024-01-15 14:30:00', '2024-01-15 14:42:00', 720, 'completed', '0123456789', 'outgoing', 'Résultats d''analyses', '2025-08-02 07:50:44.158576');
+INSERT INTO public.call_logs (id, patient_id, medecin_id, call_start_time, call_end_time, call_duration, call_status, phone_number, call_type, notes, created_at) VALUES (5, 5, 1, '2024-01-15 16:00:00', '2024-01-15 16:15:00', 900, 'completed', '0987654321', 'incoming', 'Question médicale', '2025-08-02 07:50:44.160057');
+
+
+--
+-- TOC entry 3570 (class 0 OID 24645)
+-- Dependencies: 224
+-- Data for Name: call_metrics; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+INSERT INTO public.call_metrics (id, patient_id, total_calls, successful_calls, failed_calls, total_duration, average_duration, last_call_date, call_frequency, created_at, updated_at) VALUES (1, 1, 5, 4, 1, 2520, 504.00, '2024-01-15 16:00:00', 'medium', '2025-08-02 07:50:44.162294', '2025-08-02 07:50:44.162294');
+INSERT INTO public.call_metrics (id, patient_id, total_calls, successful_calls, failed_calls, total_duration, average_duration, last_call_date, call_frequency, created_at, updated_at) VALUES (2, 2, 3, 2, 1, 1200, 400.00, '2024-01-15 10:15:00', 'low', '2025-08-02 07:50:44.165015', '2025-08-02 07:50:44.165015');
+INSERT INTO public.call_metrics (id, patient_id, total_calls, successful_calls, failed_calls, total_duration, average_duration, last_call_date, call_frequency, created_at, updated_at) VALUES (3, 3, 8, 6, 2, 3600, 450.00, '2024-01-15 14:30:00', 'high', '2025-08-02 07:50:44.166808', '2025-08-02 07:50:44.166808');
+INSERT INTO public.call_metrics (id, patient_id, total_calls, successful_calls, failed_calls, total_duration, average_duration, last_call_date, call_frequency, created_at, updated_at) VALUES (4, 4, 2, 1, 1, 900, 900.00, '2024-01-15 09:30:00', 'low', '2025-08-02 07:50:44.168978', '2025-08-02 07:50:44.168978');
+INSERT INTO public.call_metrics (id, patient_id, total_calls, successful_calls, failed_calls, total_duration, average_duration, last_call_date, call_frequency, created_at, updated_at) VALUES (5, 5, 4, 3, 1, 1800, 600.00, '2024-01-15 11:00:00', 'medium', '2025-08-02 07:50:44.171161', '2025-08-02 07:50:44.171161');
+
+
+--
+-- TOC entry 3582 (class 0 OID 32802)
+-- Dependencies: 236
+-- Data for Name: call_settings; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+INSERT INTO public.call_settings (id, key, value, description, created_at, updated_at) VALUES (1, 'max_retry_attempts', '3', 'Nombre maximum de tentatives d''appel', '2025-08-02 18:49:55.708524', '2025-08-02 18:49:55.708524');
+INSERT INTO public.call_settings (id, key, value, description, created_at, updated_at) VALUES (2, 'call_duration_limit', '300', 'Durée limite d''appel en secondes', '2025-08-02 18:49:55.708524', '2025-08-02 18:49:55.708524');
+INSERT INTO public.call_settings (id, key, value, description, created_at, updated_at) VALUES (3, 'auto_call_enabled', 'true', 'Activation des appels automatiques', '2025-08-02 18:49:55.708524', '2025-08-02 18:49:55.708524');
+INSERT INTO public.call_settings (id, key, value, description, created_at, updated_at) VALUES (4, 'call_hours_start', '09:00', 'Heure de début des appels', '2025-08-02 18:49:55.708524', '2025-08-02 18:49:55.708524');
+INSERT INTO public.call_settings (id, key, value, description, created_at, updated_at) VALUES (5, 'call_hours_end', '18:00', 'Heure de fin des appels', '2025-08-02 18:49:55.708524', '2025-08-02 18:49:55.708524');
+
+
+--
+-- TOC entry 3572 (class 0 OID 24659)
+-- Dependencies: 226
+-- Data for Name: call_statistics; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+INSERT INTO public.call_statistics (id, date, total_calls, successful_calls, failed_calls, average_duration, peak_hour, most_active_service, created_at) VALUES (1, '2024-01-15', 25, 20, 5, 420.50, 14, 'Cardiologie', '2025-08-02 07:50:44.174016');
+INSERT INTO public.call_statistics (id, date, total_calls, successful_calls, failed_calls, average_duration, peak_hour, most_active_service, created_at) VALUES (2, '2024-01-14', 30, 25, 5, 380.20, 10, 'Pédiatrie', '2025-08-02 07:50:44.176991');
+INSERT INTO public.call_statistics (id, date, total_calls, successful_calls, failed_calls, average_duration, peak_hour, most_active_service, created_at) VALUES (3, '2024-01-13', 22, 18, 4, 450.80, 16, 'Neurologie', '2025-08-02 07:50:44.179008');
+
+
+--
+-- TOC entry 3578 (class 0 OID 32770)
+-- Dependencies: 232
+-- Data for Name: calls; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+INSERT INTO public.calls (id, patient_id, numero_patient, nom, prenom, date_naissance, telephone, site_hospitalisation, date_sortie_hospitalisation, date_heure_prevue, statut_appel, medecin_referent, service_hospitalisation, date_heure_reelle, duree_appel, resume_appel, score_calcule, nombre_tentatives, max_tentatives, dialogue_result, audio_file_path, created_at, updated_at) VALUES (1, 1, '1800515123456', 'Durand', 'Jean', '1980-05-15', '01-98-76-54-01', NULL, '2025-08-11', '2025-08-14 13:41:00', 'APPELE', NULL, NULL, '2025-08-15 02:30:06.021', 195, 'Appel réussi, patient satisfait de son suivi post-hospitalisation.', 63, 1, 3, NULL, NULL, '2025-08-02 18:56:09.549818', '2025-08-02 18:56:09.549818');
+INSERT INTO public.calls (id, patient_id, numero_patient, nom, prenom, date_naissance, telephone, site_hospitalisation, date_sortie_hospitalisation, date_heure_prevue, statut_appel, medecin_referent, service_hospitalisation, date_heure_reelle, duree_appel, resume_appel, score_calcule, nombre_tentatives, max_tentatives, dialogue_result, audio_file_path, created_at, updated_at) VALUES (2, 2, '2750922654321', 'Martin', 'Claire', '1975-09-22', '01-98-76-54-02', NULL, '2025-07-28', '2025-08-03 08:05:00', 'A_APPELER', NULL, NULL, NULL, NULL, NULL, NULL, 0, 3, NULL, NULL, '2025-08-02 18:56:09.554303', '2025-08-02 18:56:09.554303');
+INSERT INTO public.calls (id, patient_id, numero_patient, nom, prenom, date_naissance, telephone, site_hospitalisation, date_sortie_hospitalisation, date_heure_prevue, statut_appel, medecin_referent, service_hospitalisation, date_heure_reelle, duree_appel, resume_appel, score_calcule, nombre_tentatives, max_tentatives, dialogue_result, audio_file_path, created_at, updated_at) VALUES (3, 3, '1100308987654', 'Petit', 'Lucas', '2010-03-08', '01-98-76-54-03', NULL, '2025-08-13', '2025-08-19 11:24:00', 'APPELE', NULL, NULL, '2025-08-19 18:39:36.038', 187, 'Appel réussi, patient satisfait de son suivi post-hospitalisation.', 61, 1, 3, NULL, NULL, '2025-08-02 18:56:09.55724', '2025-08-02 18:56:09.55724');
+INSERT INTO public.calls (id, patient_id, numero_patient, nom, prenom, date_naissance, telephone, site_hospitalisation, date_sortie_hospitalisation, date_heure_prevue, statut_appel, medecin_referent, service_hospitalisation, date_heure_reelle, duree_appel, resume_appel, score_calcule, nombre_tentatives, max_tentatives, dialogue_result, audio_file_path, created_at, updated_at) VALUES (4, 4, '1920112345678', 'Legrand', 'Antoine', '1992-01-12', '05-67-89-12-34', NULL, '2025-07-22', '2025-07-29 10:44:00', 'A_APPELER', NULL, NULL, NULL, NULL, NULL, NULL, 0, 3, NULL, NULL, '2025-08-02 18:56:09.560018', '2025-08-02 18:56:09.560018');
+INSERT INTO public.calls (id, patient_id, numero_patient, nom, prenom, date_naissance, telephone, site_hospitalisation, date_sortie_hospitalisation, date_heure_prevue, statut_appel, medecin_referent, service_hospitalisation, date_heure_reelle, duree_appel, resume_appel, score_calcule, nombre_tentatives, max_tentatives, dialogue_result, audio_file_path, created_at, updated_at) VALUES (5, 5, '2850625987654', 'Thomas', 'Marie', '1985-06-25', '03-21-45-67-89', NULL, '2025-07-31', '2025-08-05 14:00:00', 'APPELE', NULL, NULL, '2025-08-06 02:27:35.942', 85, 'Appel réussi, patient satisfait de son suivi post-hospitalisation.', 62, 1, 3, NULL, NULL, '2025-08-02 18:56:09.562544', '2025-08-02 18:56:09.562544');
+INSERT INTO public.calls (id, patient_id, numero_patient, nom, prenom, date_naissance, telephone, site_hospitalisation, date_sortie_hospitalisation, date_heure_prevue, statut_appel, medecin_referent, service_hospitalisation, date_heure_reelle, duree_appel, resume_appel, score_calcule, nombre_tentatives, max_tentatives, dialogue_result, audio_file_path, created_at, updated_at) VALUES (6, 6, '1781130654321', 'Robert', 'Paul', '1978-11-30', '02-99-87-65-43', NULL, '2025-07-19', '2025-07-26 07:51:00', 'APPELE', NULL, NULL, '2025-07-26 14:39:50.745', 305, 'Appel réussi, patient satisfait de son suivi post-hospitalisation.', 92, 1, 3, NULL, NULL, '2025-08-02 18:56:09.565218', '2025-08-02 18:56:09.565218');
+INSERT INTO public.calls (id, patient_id, numero_patient, nom, prenom, date_naissance, telephone, site_hospitalisation, date_sortie_hospitalisation, date_heure_prevue, statut_appel, medecin_referent, service_hospitalisation, date_heure_reelle, duree_appel, resume_appel, score_calcule, nombre_tentatives, max_tentatives, dialogue_result, audio_file_path, created_at, updated_at) VALUES (7, 7, '2950418123789', 'Richard', 'Julie', '1995-04-18', '03-80-12-34-56', NULL, '2025-07-21', '2025-07-28 11:29:00', 'APPELE', NULL, NULL, '2025-07-28 15:40:04.088', 129, 'Appel réussi, patient satisfait de son suivi post-hospitalisation.', 89, 1, 3, NULL, NULL, '2025-08-02 18:56:09.567836', '2025-08-02 18:56:09.567836');
+INSERT INTO public.calls (id, patient_id, numero_patient, nom, prenom, date_naissance, telephone, site_hospitalisation, date_sortie_hospitalisation, date_heure_prevue, statut_appel, medecin_referent, service_hospitalisation, date_heure_reelle, duree_appel, resume_appel, score_calcule, nombre_tentatives, max_tentatives, dialogue_result, audio_file_path, created_at, updated_at) VALUES (8, 8, '1700814456789', 'Dubois', 'Michel', '1970-08-14', '04-73-56-78-90', NULL, '2025-07-28', '2025-08-01 14:42:00', 'ECHEC', NULL, NULL, NULL, NULL, 'Échec après 3 tentatives, patient injoignable.', 0, 3, 3, NULL, NULL, '2025-08-02 18:56:09.570268', '2025-08-02 18:56:09.570268');
+INSERT INTO public.calls (id, patient_id, numero_patient, nom, prenom, date_naissance, telephone, site_hospitalisation, date_sortie_hospitalisation, date_heure_prevue, statut_appel, medecin_referent, service_hospitalisation, date_heure_reelle, duree_appel, resume_appel, score_calcule, nombre_tentatives, max_tentatives, dialogue_result, audio_file_path, created_at, updated_at) VALUES (9, 9, '2831207789123', 'Garcia', 'Carmen', '1983-12-07', '04-67-23-45-67', NULL, '2025-08-06', '2025-08-11 07:18:00', 'APPELE', NULL, NULL, '2025-08-11 14:29:36.598', 334, 'Appel réussi, patient satisfait de son suivi post-hospitalisation.', 61, 1, 3, NULL, NULL, '2025-08-02 18:56:09.573419', '2025-08-02 18:56:09.573419');
+INSERT INTO public.calls (id, patient_id, numero_patient, nom, prenom, date_naissance, telephone, site_hospitalisation, date_sortie_hospitalisation, date_heure_prevue, statut_appel, medecin_referent, service_hospitalisation, date_heure_reelle, duree_appel, resume_appel, score_calcule, nombre_tentatives, max_tentatives, dialogue_result, audio_file_path, created_at, updated_at) VALUES (10, 10, '1870322345678', 'Martinez', 'Carlos', '1987-03-22', '04-93-78-90-12', NULL, '2025-08-01', '2025-08-07 14:00:00', 'APPELE', NULL, NULL, '2025-08-08 12:13:30.916', 112, 'Appel réussi, patient satisfait de son suivi post-hospitalisation.', 87, 1, 3, NULL, NULL, '2025-08-02 18:56:09.576363', '2025-08-02 18:56:09.576363');
+INSERT INTO public.calls (id, patient_id, numero_patient, nom, prenom, date_naissance, telephone, site_hospitalisation, date_sortie_hospitalisation, date_heure_prevue, statut_appel, medecin_referent, service_hospitalisation, date_heure_reelle, duree_appel, resume_appel, score_calcule, nombre_tentatives, max_tentatives, dialogue_result, audio_file_path, created_at, updated_at) VALUES (11, 11, '2910915678901', 'Lopez', 'Isabella', '1991-09-15', '03-26-45-67-89', NULL, '2025-07-24', '2025-07-29 13:55:00', 'ECHEC', NULL, NULL, NULL, NULL, 'Échec après 3 tentatives, patient injoignable.', 0, 3, 3, NULL, NULL, '2025-08-02 18:56:09.578585', '2025-08-02 18:56:09.578585');
+INSERT INTO public.calls (id, patient_id, numero_patient, nom, prenom, date_naissance, telephone, site_hospitalisation, date_sortie_hospitalisation, date_heure_prevue, statut_appel, medecin_referent, service_hospitalisation, date_heure_reelle, duree_appel, resume_appel, score_calcule, nombre_tentatives, max_tentatives, dialogue_result, audio_file_path, created_at, updated_at) VALUES (12, 12, '1760228901234', 'Gonzalez', 'Roberto', '1976-02-28', '03-87-90-12-34', NULL, '2025-07-29', '2025-08-01 13:52:00', 'APPELE', NULL, NULL, '2025-08-01 21:22:27.2', 86, 'Appel réussi, patient satisfait de son suivi post-hospitalisation.', 85, 1, 3, NULL, NULL, '2025-08-02 18:56:09.580928', '2025-08-02 18:56:09.580928');
+INSERT INTO public.calls (id, patient_id, numero_patient, nom, prenom, date_naissance, telephone, site_hospitalisation, date_sortie_hospitalisation, date_heure_prevue, statut_appel, medecin_referent, service_hospitalisation, date_heure_reelle, duree_appel, resume_appel, score_calcule, nombre_tentatives, max_tentatives, dialogue_result, audio_file_path, created_at, updated_at) VALUES (13, 13, '2890711234567', 'Wilson', 'Sarah', '1989-07-11', '02-47-34-56-78', NULL, '2025-07-29', '2025-08-01 14:57:00', 'ECHEC', NULL, NULL, NULL, NULL, 'Échec après 3 tentatives, patient injoignable.', 0, 3, 3, NULL, NULL, '2025-08-02 18:56:09.583002', '2025-08-02 18:56:09.583002');
+INSERT INTO public.calls (id, patient_id, numero_patient, nom, prenom, date_naissance, telephone, site_hospitalisation, date_sortie_hospitalisation, date_heure_prevue, statut_appel, medecin_referent, service_hospitalisation, date_heure_reelle, duree_appel, resume_appel, score_calcule, nombre_tentatives, max_tentatives, dialogue_result, audio_file_path, created_at, updated_at) VALUES (14, 14, '1821005567890', 'Johnson', 'David', '1982-10-05', '02-38-67-89-01', NULL, '2025-08-01', '2025-08-02 14:59:00', 'APPELE', NULL, NULL, '2025-08-03 01:48:09.228', 279, 'Appel réussi, patient satisfait de son suivi post-hospitalisation.', 94, 1, 3, NULL, NULL, '2025-08-02 18:56:09.585459', '2025-08-02 18:56:09.585459');
+INSERT INTO public.calls (id, patient_id, numero_patient, nom, prenom, date_naissance, telephone, site_hospitalisation, date_sortie_hospitalisation, date_heure_prevue, statut_appel, medecin_referent, service_hospitalisation, date_heure_reelle, duree_appel, resume_appel, score_calcule, nombre_tentatives, max_tentatives, dialogue_result, audio_file_path, created_at, updated_at) VALUES (15, 15, '2940529890123', 'Brown', 'Jennifer', '1994-05-29', '02-41-12-34-56', NULL, '2025-08-08', '2025-08-09 14:05:00', 'ECHEC', NULL, NULL, NULL, NULL, 'Échec après 3 tentatives, patient injoignable.', 0, 3, 3, NULL, NULL, '2025-08-02 18:56:09.58802', '2025-08-02 18:56:09.58802');
+INSERT INTO public.calls (id, patient_id, numero_patient, nom, prenom, date_naissance, telephone, site_hospitalisation, date_sortie_hospitalisation, date_heure_prevue, statut_appel, medecin_referent, service_hospitalisation, date_heure_reelle, duree_appel, resume_appel, score_calcule, nombre_tentatives, max_tentatives, dialogue_result, audio_file_path, created_at, updated_at) VALUES (16, 16, '1730117123456', 'Davis', 'Christopher', '1973-01-17', '02-43-78-90-12', NULL, '2025-08-04', '2025-08-11 12:30:00', 'A_APPELER', NULL, NULL, NULL, NULL, NULL, NULL, 0, 3, NULL, NULL, '2025-08-02 18:56:09.59029', '2025-08-02 18:56:09.59029');
+INSERT INTO public.calls (id, patient_id, numero_patient, nom, prenom, date_naissance, telephone, site_hospitalisation, date_sortie_hospitalisation, date_heure_prevue, statut_appel, medecin_referent, service_hospitalisation, date_heure_reelle, duree_appel, resume_appel, score_calcule, nombre_tentatives, max_tentatives, dialogue_result, audio_file_path, created_at, updated_at) VALUES (17, 17, '2881203456789', 'Miller', 'Amanda', '1988-12-03', '02-31-45-67-89', NULL, '2025-08-09', '2025-08-12 12:44:00', 'A_APPELER', NULL, NULL, NULL, NULL, NULL, NULL, 0, 3, NULL, NULL, '2025-08-02 18:56:09.592819', '2025-08-02 18:56:09.592819');
+INSERT INTO public.calls (id, patient_id, numero_patient, nom, prenom, date_naissance, telephone, site_hospitalisation, date_sortie_hospitalisation, date_heure_prevue, statut_appel, medecin_referent, service_hospitalisation, date_heure_reelle, duree_appel, resume_appel, score_calcule, nombre_tentatives, max_tentatives, dialogue_result, audio_file_path, created_at, updated_at) VALUES (18, 18, '1810821789012', 'Anderson', 'Michael', '1981-08-21', '02-98-23-45-67', NULL, '2025-08-05', '2025-08-09 14:47:00', 'A_APPELER', NULL, NULL, NULL, NULL, NULL, NULL, 0, 3, NULL, NULL, '2025-08-02 18:56:09.595611', '2025-08-02 18:56:09.595611');
+INSERT INTO public.calls (id, patient_id, numero_patient, nom, prenom, date_naissance, telephone, site_hospitalisation, date_sortie_hospitalisation, date_heure_prevue, statut_appel, medecin_referent, service_hospitalisation, date_heure_reelle, duree_appel, resume_appel, score_calcule, nombre_tentatives, max_tentatives, dialogue_result, audio_file_path, created_at, updated_at) VALUES (19, 19, '2860414012345', 'Taylor', 'Lisa', '1986-04-14', '05-49-67-89-01', NULL, '2025-08-04', '2025-08-06 09:19:00', 'APPELE', NULL, NULL, '2025-08-07 00:34:26.246', 168, 'Appel réussi, patient satisfait de son suivi post-hospitalisation.', 76, 1, 3, NULL, NULL, '2025-08-02 18:56:09.59829', '2025-08-02 18:56:09.59829');
+INSERT INTO public.calls (id, patient_id, numero_patient, nom, prenom, date_naissance, telephone, site_hospitalisation, date_sortie_hospitalisation, date_heure_prevue, statut_appel, medecin_referent, service_hospitalisation, date_heure_reelle, duree_appel, resume_appel, score_calcule, nombre_tentatives, max_tentatives, dialogue_result, audio_file_path, created_at, updated_at) VALUES (20, 20, '1931126345678', 'Jackson', 'Ryan', '1993-11-26', '05-55-34-56-78', NULL, '2025-07-27', '2025-08-02 13:19:00', 'APPELE', NULL, NULL, '2025-08-02 16:02:59.73', 277, 'Appel réussi, patient satisfait de son suivi post-hospitalisation.', 98, 1, 3, NULL, NULL, '2025-08-02 18:56:09.600968', '2025-08-02 18:56:09.600968');
+INSERT INTO public.calls (id, patient_id, numero_patient, nom, prenom, date_naissance, telephone, site_hospitalisation, date_sortie_hospitalisation, date_heure_prevue, statut_appel, medecin_referent, service_hospitalisation, date_heure_reelle, duree_appel, resume_appel, score_calcule, nombre_tentatives, max_tentatives, dialogue_result, audio_file_path, created_at, updated_at) VALUES (21, 21, '1850315123456', 'Thys', 'Oliver', '1985-03-15', '+32-65-12-34-56', NULL, '2025-07-29', '2025-08-01 13:48:00', 'APPELE', NULL, NULL, '2025-08-01 23:19:47.367', 184, 'Appel réussi, patient satisfait de son suivi post-hospitalisation.', 73, 1, 3, NULL, NULL, '2025-08-02 18:56:09.603738', '2025-08-02 18:56:09.603738');
+
+
+--
+-- TOC entry 3560 (class 0 OID 24585)
+-- Dependencies: 214
+-- Data for Name: chambres_sync; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+INSERT INTO public.chambres_sync (chambre_id, numero_chambre, service_id, type_chambre, prix_jour, occupee, created_date, sync_timestamp, sync_source) VALUES (1, '101', 1, 'Simple', 120.00, 'N   ', '2025-07-31 13:49:13', '2025-08-02 20:58:35.369', 'oracle');
+INSERT INTO public.chambres_sync (chambre_id, numero_chambre, service_id, type_chambre, prix_jour, occupee, created_date, sync_timestamp, sync_source) VALUES (2, '102', 1, 'Double', 180.00, 'N   ', '2025-07-31 13:49:13', '2025-08-02 20:58:35.369', 'oracle');
+INSERT INTO public.chambres_sync (chambre_id, numero_chambre, service_id, type_chambre, prix_jour, occupee, created_date, sync_timestamp, sync_source) VALUES (3, '201', 2, 'Suite', 250.00, 'N   ', '2025-07-31 13:49:13', '2025-08-02 20:58:35.369', 'oracle');
+INSERT INTO public.chambres_sync (chambre_id, numero_chambre, service_id, type_chambre, prix_jour, occupee, created_date, sync_timestamp, sync_source) VALUES (4, '103', 1, 'Simple', 125.00, 'N   ', '2025-07-31 13:52:49', '2025-08-02 20:58:35.369', 'oracle');
+INSERT INTO public.chambres_sync (chambre_id, numero_chambre, service_id, type_chambre, prix_jour, occupee, created_date, sync_timestamp, sync_source) VALUES (5, '104', 1, 'Suite', 280.00, 'N   ', '2025-07-31 13:52:49', '2025-08-02 20:58:35.369', 'oracle');
+INSERT INTO public.chambres_sync (chambre_id, numero_chambre, service_id, type_chambre, prix_jour, occupee, created_date, sync_timestamp, sync_source) VALUES (6, '202', 2, 'Double', 190.00, 'N   ', '2025-07-31 13:52:49', '2025-08-02 20:58:35.369', 'oracle');
+INSERT INTO public.chambres_sync (chambre_id, numero_chambre, service_id, type_chambre, prix_jour, occupee, created_date, sync_timestamp, sync_source) VALUES (7, '203', 2, 'Simple', 130.00, 'N   ', '2025-07-31 13:52:49', '2025-08-02 20:58:35.369', 'oracle');
+INSERT INTO public.chambres_sync (chambre_id, numero_chambre, service_id, type_chambre, prix_jour, occupee, created_date, sync_timestamp, sync_source) VALUES (8, '302', 3, 'Simple', 105.00, 'N   ', '2025-07-31 13:52:49', '2025-08-02 20:58:35.369', 'oracle');
+INSERT INTO public.chambres_sync (chambre_id, numero_chambre, service_id, type_chambre, prix_jour, occupee, created_date, sync_timestamp, sync_source) VALUES (9, '303', 3, 'Double', 160.00, 'N   ', '2025-07-31 13:52:49', '2025-08-02 20:58:35.369', 'oracle');
+INSERT INTO public.chambres_sync (chambre_id, numero_chambre, service_id, type_chambre, prix_jour, occupee, created_date, sync_timestamp, sync_source) VALUES (10, '402', 4, 'Simple', 95.00, 'N   ', '2025-07-31 13:52:49', '2025-08-02 20:58:35.369', 'oracle');
+INSERT INTO public.chambres_sync (chambre_id, numero_chambre, service_id, type_chambre, prix_jour, occupee, created_date, sync_timestamp, sync_source) VALUES (11, '403', 4, 'Double', 145.00, 'N   ', '2025-07-31 13:52:49', '2025-08-02 20:58:35.369', 'oracle');
+INSERT INTO public.chambres_sync (chambre_id, numero_chambre, service_id, type_chambre, prix_jour, occupee, created_date, sync_timestamp, sync_source) VALUES (12, '501', 5, 'Simple', 140.00, 'N   ', '2025-07-31 13:52:49', '2025-08-02 20:58:35.369', 'oracle');
+INSERT INTO public.chambres_sync (chambre_id, numero_chambre, service_id, type_chambre, prix_jour, occupee, created_date, sync_timestamp, sync_source) VALUES (13, '502', 5, 'Suite', 300.00, 'N   ', '2025-07-31 13:52:49', '2025-08-02 20:58:35.369', 'oracle');
+INSERT INTO public.chambres_sync (chambre_id, numero_chambre, service_id, type_chambre, prix_jour, occupee, created_date, sync_timestamp, sync_source) VALUES (14, '601', 6, 'Simple', 115.00, 'N   ', '2025-07-31 13:52:49', '2025-08-02 20:58:35.369', 'oracle');
+INSERT INTO public.chambres_sync (chambre_id, numero_chambre, service_id, type_chambre, prix_jour, occupee, created_date, sync_timestamp, sync_source) VALUES (15, '602', 7, 'Double', 175.00, 'N   ', '2025-07-31 13:52:49', '2025-08-02 20:58:35.369', 'oracle');
+INSERT INTO public.chambres_sync (chambre_id, numero_chambre, service_id, type_chambre, prix_jour, occupee, created_date, sync_timestamp, sync_source) VALUES (16, '701', 11, 'Simple', 165.00, 'N   ', '2025-07-31 13:52:49', '2025-08-02 20:58:35.369', 'oracle');
+INSERT INTO public.chambres_sync (chambre_id, numero_chambre, service_id, type_chambre, prix_jour, occupee, created_date, sync_timestamp, sync_source) VALUES (17, '702', 11, 'Suite', 320.00, 'N   ', '2025-07-31 13:52:49', '2025-08-02 20:58:35.369', 'oracle');
+INSERT INTO public.chambres_sync (chambre_id, numero_chambre, service_id, type_chambre, prix_jour, occupee, created_date, sync_timestamp, sync_source) VALUES (18, '801', 15, 'Simple', 110.00, 'N   ', '2025-07-31 13:52:49', '2025-08-02 20:58:35.369', 'oracle');
+INSERT INTO public.chambres_sync (chambre_id, numero_chambre, service_id, type_chambre, prix_jour, occupee, created_date, sync_timestamp, sync_source) VALUES (19, '802', 15, 'Double', 170.00, 'N   ', '2025-07-31 13:52:49', '2025-08-02 20:58:35.369', 'oracle');
+INSERT INTO public.chambres_sync (chambre_id, numero_chambre, service_id, type_chambre, prix_jour, occupee, created_date, sync_timestamp, sync_source) VALUES (20, '901', 18, 'Simple', 200.00, 'N   ', '2025-07-31 13:52:49', '2025-08-02 20:58:35.369', 'oracle');
+
+
+--
+-- TOC entry 3561 (class 0 OID 24592)
+-- Dependencies: 215
+-- Data for Name: hospitalisations_sync; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+INSERT INTO public.hospitalisations_sync (hospitalisation_id, patient_id, chambre_id, medecin_id, date_entree, date_sortie, motif, diagnostic, statut, created_date, sync_timestamp, sync_source) VALUES (1, 1, 1, 1, '2025-07-29 13:49:13', NULL, 'Douleurs thoraciques', 'Infarctus du myocarde', 'En cours', '2025-07-31 13:49:13', '2025-08-02 20:58:35.427', 'oracle');
+INSERT INTO public.hospitalisations_sync (hospitalisation_id, patient_id, chambre_id, medecin_id, date_entree, date_sortie, motif, diagnostic, statut, created_date, sync_timestamp, sync_source) VALUES (2, 4, 4, 5, '2025-07-26 13:52:49', NULL, 'Fracture du fémur', 'Fracture complexe nécessitant chirurgie', 'En cours', '2025-07-31 13:52:49', '2025-08-02 20:58:35.427', 'oracle');
+INSERT INTO public.hospitalisations_sync (hospitalisation_id, patient_id, chambre_id, medecin_id, date_entree, date_sortie, motif, diagnostic, statut, created_date, sync_timestamp, sync_source) VALUES (3, 5, 5, 6, '2025-07-16 13:52:49', '2025-07-23 13:52:49', 'Eczéma sévère', 'Dermatite atopique', 'Terminee', '2025-07-31 13:52:49', '2025-08-02 20:58:35.427', 'oracle');
+INSERT INTO public.hospitalisations_sync (hospitalisation_id, patient_id, chambre_id, medecin_id, date_entree, date_sortie, motif, diagnostic, statut, created_date, sync_timestamp, sync_source) VALUES (4, 6, 6, 7, '2025-07-28 13:52:49', NULL, 'Pneumonie', 'Pneumonie bilatérale', 'En cours', '2025-07-31 13:52:49', '2025-08-02 20:58:35.427', 'oracle');
+INSERT INTO public.hospitalisations_sync (hospitalisation_id, patient_id, chambre_id, medecin_id, date_entree, date_sortie, motif, diagnostic, statut, created_date, sync_timestamp, sync_source) VALUES (5, 7, 7, 8, '2025-07-11 13:52:49', '2025-07-19 13:52:49', 'Gastrite aiguë', 'Inflammation gastrique', 'Terminee', '2025-07-31 13:52:49', '2025-08-02 20:58:35.427', 'oracle');
+INSERT INTO public.hospitalisations_sync (hospitalisation_id, patient_id, chambre_id, medecin_id, date_entree, date_sortie, motif, diagnostic, statut, created_date, sync_timestamp, sync_source) VALUES (6, 8, 8, 9, '2025-07-30 13:52:49', NULL, 'Hyperthyroïdie', 'Dysfonctionnement thyroïdien', 'En cours', '2025-07-31 13:52:49', '2025-08-02 20:58:35.427', 'oracle');
+INSERT INTO public.hospitalisations_sync (hospitalisation_id, patient_id, chambre_id, medecin_id, date_entree, date_sortie, motif, diagnostic, statut, created_date, sync_timestamp, sync_source) VALUES (7, 9, 9, 10, '2025-07-19 13:52:49', '2025-07-26 13:52:49', 'Calculs rénaux', 'Lithiase rénale', 'Terminee', '2025-07-31 13:52:49', '2025-08-02 20:58:35.427', 'oracle');
+INSERT INTO public.hospitalisations_sync (hospitalisation_id, patient_id, chambre_id, medecin_id, date_entree, date_sortie, motif, diagnostic, statut, created_date, sync_timestamp, sync_source) VALUES (8, 10, 17, 11, '2025-07-27 13:52:49', NULL, 'Tumeur bénigne', 'Kyste ovarien', 'En cours', '2025-07-31 13:52:49', '2025-08-02 20:58:35.427', 'oracle');
+INSERT INTO public.hospitalisations_sync (hospitalisation_id, patient_id, chambre_id, medecin_id, date_entree, date_sortie, motif, diagnostic, statut, created_date, sync_timestamp, sync_source) VALUES (9, 11, 11, 12, '2025-07-06 13:52:49', '2025-07-13 13:52:49', 'Cataracte', 'Opacification du cristallin', 'Terminee', '2025-07-31 13:52:49', '2025-08-02 20:58:35.427', 'oracle');
+INSERT INTO public.hospitalisations_sync (hospitalisation_id, patient_id, chambre_id, medecin_id, date_entree, date_sortie, motif, diagnostic, statut, created_date, sync_timestamp, sync_source) VALUES (10, 12, 12, 13, '2025-07-29 13:52:49', NULL, 'Sinusite chronique', 'Inflammation des sinus', 'En cours', '2025-07-31 13:52:49', '2025-08-02 20:58:35.427', 'oracle');
+INSERT INTO public.hospitalisations_sync (hospitalisation_id, patient_id, chambre_id, medecin_id, date_entree, date_sortie, motif, diagnostic, statut, created_date, sync_timestamp, sync_source) VALUES (11, 13, 13, 14, '2025-07-01 13:52:49', '2025-07-09 13:52:49', 'Arthrose sévère', 'Dégénérescence articulaire', 'Terminee', '2025-07-31 13:52:49', '2025-08-02 20:58:35.427', 'oracle');
+INSERT INTO public.hospitalisations_sync (hospitalisation_id, patient_id, chambre_id, medecin_id, date_entree, date_sortie, motif, diagnostic, statut, created_date, sync_timestamp, sync_source) VALUES (12, 14, 19, 15, '2025-07-24 13:52:49', NULL, 'Dépression sévère', 'Episode dépressif majeur', 'En cours', '2025-07-31 13:52:49', '2025-08-02 20:58:35.427', 'oracle');
+INSERT INTO public.hospitalisations_sync (hospitalisation_id, patient_id, chambre_id, medecin_id, date_entree, date_sortie, motif, diagnostic, statut, created_date, sync_timestamp, sync_source) VALUES (13, 15, 15, 16, '2025-07-13 13:52:49', '2025-07-21 13:52:49', 'Examen radiologique', 'Bilan complet normal', 'Terminee', '2025-07-31 13:52:49', '2025-08-02 20:58:35.427', 'oracle');
+INSERT INTO public.hospitalisations_sync (hospitalisation_id, patient_id, chambre_id, medecin_id, date_entree, date_sortie, motif, diagnostic, statut, created_date, sync_timestamp, sync_source) VALUES (14, 16, 20, 17, '2025-07-25 13:52:49', NULL, 'Intervention chirurgicale', 'Cholécystectomie programmée', 'En cours', '2025-07-31 13:52:49', '2025-08-02 20:58:35.427', 'oracle');
+INSERT INTO public.hospitalisations_sync (hospitalisation_id, patient_id, chambre_id, medecin_id, date_entree, date_sortie, motif, diagnostic, statut, created_date, sync_timestamp, sync_source) VALUES (16, 18, 18, 19, '2025-07-17 13:52:49', '2025-07-24 13:52:49', 'Insuffisance rénale', 'Dysfonctionnement rénal chronique', 'Terminee', '2025-07-31 13:52:49', '2025-08-02 20:58:35.427', 'oracle');
+INSERT INTO public.hospitalisations_sync (hospitalisation_id, patient_id, chambre_id, medecin_id, date_entree, date_sortie, motif, diagnostic, statut, created_date, sync_timestamp, sync_source) VALUES (17, 19, 10, 5, '2025-07-23 13:52:49', NULL, 'Entorse cheville', 'Trauma ligamentaire', 'En cours', '2025-07-31 13:52:49', '2025-08-02 20:58:35.427', 'oracle');
+INSERT INTO public.hospitalisations_sync (hospitalisation_id, patient_id, chambre_id, medecin_id, date_entree, date_sortie, motif, diagnostic, statut, created_date, sync_timestamp, sync_source) VALUES (18, 20, 14, 11, '2025-07-10 13:52:49', '2025-07-17 13:52:49', 'Chimiothérapie', 'Traitement oncologique', 'Terminee', '2025-07-31 13:52:49', '2025-08-02 20:58:35.427', 'oracle');
+INSERT INTO public.hospitalisations_sync (hospitalisation_id, patient_id, chambre_id, medecin_id, date_entree, date_sortie, motif, diagnostic, statut, created_date, sync_timestamp, sync_source) VALUES (19, 3, 16, 15, '2025-07-30 13:52:49', NULL, 'Anxiété généralisée', 'Trouble anxieux', 'En cours', '2025-07-31 13:52:49', '2025-08-02 20:58:35.427', 'oracle');
+INSERT INTO public.hospitalisations_sync (hospitalisation_id, patient_id, chambre_id, medecin_id, date_entree, date_sortie, motif, diagnostic, statut, created_date, sync_timestamp, sync_source) VALUES (20, 2, 3, 2, '2025-06-26 13:52:49', '2025-07-03 13:52:49', 'AVC ischémique', 'Accident vasculaire cérébral', 'Terminee', '2025-07-31 13:52:49', '2025-08-02 20:58:35.427', 'oracle');
+INSERT INTO public.hospitalisations_sync (hospitalisation_id, patient_id, chambre_id, medecin_id, date_entree, date_sortie, motif, diagnostic, statut, created_date, sync_timestamp, sync_source) VALUES (21, 21, 2, 1, '2025-07-30 13:58:08', NULL, 'Douleurs thoraciques et essoufflement', 'Suspicion d arythmie cardiaque', 'En cours', '2025-07-31 13:58:08', '2025-08-02 20:58:35.427', 'oracle');
+
+
+--
+-- TOC entry 3562 (class 0 OID 24599)
+-- Dependencies: 216
+-- Data for Name: medecins_sync; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+INSERT INTO public.medecins_sync (medecin_id, nom, prenom, specialite, service_id, telephone, email, date_embauche, salaire, created_date, sync_timestamp, sync_source) VALUES (1, 'Dubois', 'Martin', 'Cardiologue', 1, '06-12-34-56-01', 'martin.dubois@hopital.fr', '2025-07-31 13:49:13', 8500.00, '2025-07-31 13:49:13', '2025-08-02 20:58:35.465', 'oracle');
+INSERT INTO public.medecins_sync (medecin_id, nom, prenom, specialite, service_id, telephone, email, date_embauche, salaire, created_date, sync_timestamp, sync_source) VALUES (2, 'Laurent', 'Sophie', 'Neurologue', 2, '06-12-34-56-02', 'sophie.laurent@hopital.fr', '2025-07-31 13:49:13', 8200.00, '2025-07-31 13:49:13', '2025-08-02 20:58:35.465', 'oracle');
+INSERT INTO public.medecins_sync (medecin_id, nom, prenom, specialite, service_id, telephone, email, date_embauche, salaire, created_date, sync_timestamp, sync_source) VALUES (3, 'Moreau', 'Pierre', 'Urgentiste', 3, '06-12-34-56-03', 'pierre.moreau@hopital.fr', '2025-07-31 13:49:13', 7800.00, '2025-07-31 13:49:13', '2025-08-02 20:58:35.465', 'oracle');
+INSERT INTO public.medecins_sync (medecin_id, nom, prenom, specialite, service_id, telephone, email, date_embauche, salaire, created_date, sync_timestamp, sync_source) VALUES (4, 'Rousseau', 'Marie', 'Pediatre', 4, '06-12-34-56-04', 'marie.rousseau@hopital.fr', '2025-07-31 13:49:13', 7500.00, '2025-07-31 13:49:13', '2025-08-02 20:58:35.465', 'oracle');
+INSERT INTO public.medecins_sync (medecin_id, nom, prenom, specialite, service_id, telephone, email, date_embauche, salaire, created_date, sync_timestamp, sync_source) VALUES (5, 'Lebon', 'Jean-Pierre', 'Orthopédiste', 5, '06-12-34-56-07', 'jeanpierre.lebon@hopital.fr', '2025-07-31 13:52:49', 8800.00, '2025-07-31 13:52:49', '2025-08-02 20:58:35.465', 'oracle');
+INSERT INTO public.medecins_sync (medecin_id, nom, prenom, specialite, service_id, telephone, email, date_embauche, salaire, created_date, sync_timestamp, sync_source) VALUES (6, 'Blanc', 'Catherine', 'Dermatologue', 6, '06-12-34-56-08', 'catherine.blanc@hopital.fr', '2025-07-31 13:52:49', 7600.00, '2025-07-31 13:52:49', '2025-08-02 20:58:35.465', 'oracle');
+INSERT INTO public.medecins_sync (medecin_id, nom, prenom, specialite, service_id, telephone, email, date_embauche, salaire, created_date, sync_timestamp, sync_source) VALUES (7, 'Roux', 'Michel', 'Pneumologue', 7, '06-12-34-56-09', 'michel.roux@hopital.fr', '2025-07-31 13:52:49', 8100.00, '2025-07-31 13:52:49', '2025-08-02 20:58:35.465', 'oracle');
+INSERT INTO public.medecins_sync (medecin_id, nom, prenom, specialite, service_id, telephone, email, date_embauche, salaire, created_date, sync_timestamp, sync_source) VALUES (8, 'Moreau', 'Anne', 'Gastro-entérologue', 8, '06-12-34-56-10', 'anne.moreau@hopital.fr', '2025-07-31 13:52:49', 8300.00, '2025-07-31 13:52:49', '2025-08-02 20:58:35.465', 'oracle');
+INSERT INTO public.medecins_sync (medecin_id, nom, prenom, specialite, service_id, telephone, email, date_embauche, salaire, created_date, sync_timestamp, sync_source) VALUES (9, 'Duval', 'François', 'Endocrinologue', 9, '06-12-34-56-11', 'francois.duval@hopital.fr', '2025-07-31 13:52:49', 8000.00, '2025-07-31 13:52:49', '2025-08-02 20:58:35.465', 'oracle');
+INSERT INTO public.medecins_sync (medecin_id, nom, prenom, specialite, service_id, telephone, email, date_embauche, salaire, created_date, sync_timestamp, sync_source) VALUES (10, 'Lemoine', 'Patrick', 'Urologue', 10, '06-12-34-56-12', 'patrick.lemoine@hopital.fr', '2025-07-31 13:52:49', 8400.00, '2025-07-31 13:52:49', '2025-08-02 20:58:35.465', 'oracle');
+INSERT INTO public.medecins_sync (medecin_id, nom, prenom, specialite, service_id, telephone, email, date_embauche, salaire, created_date, sync_timestamp, sync_source) VALUES (11, 'Girard', 'Isabelle', 'Oncologue', 11, '06-12-34-56-13', 'isabelle.girard@hopital.fr', '2025-07-31 13:52:49', 9500.00, '2025-07-31 13:52:49', '2025-08-02 20:58:35.465', 'oracle');
+INSERT INTO public.medecins_sync (medecin_id, nom, prenom, specialite, service_id, telephone, email, date_embauche, salaire, created_date, sync_timestamp, sync_source) VALUES (12, 'Simon', 'Robert', 'Ophtalmologue', 12, '06-12-34-56-14', 'robert.simon@hopital.fr', '2025-07-31 13:52:49', 7900.00, '2025-07-31 13:52:49', '2025-08-02 20:58:35.465', 'oracle');
+INSERT INTO public.medecins_sync (medecin_id, nom, prenom, specialite, service_id, telephone, email, date_embauche, salaire, created_date, sync_timestamp, sync_source) VALUES (13, 'Martin', 'Sylvie', 'ORL', 13, '06-12-34-56-15', 'sylvie.martin@hopital.fr', '2025-07-31 13:52:49', 7700.00, '2025-07-31 13:52:49', '2025-08-02 20:58:35.465', 'oracle');
+INSERT INTO public.medecins_sync (medecin_id, nom, prenom, specialite, service_id, telephone, email, date_embauche, salaire, created_date, sync_timestamp, sync_source) VALUES (14, 'Fabre', 'Henri', 'Rhumatologue', 14, '06-12-34-56-16', 'henri.fabre@hopital.fr', '2025-07-31 13:52:49', 7800.00, '2025-07-31 13:52:49', '2025-08-02 20:58:35.465', 'oracle');
+INSERT INTO public.medecins_sync (medecin_id, nom, prenom, specialite, service_id, telephone, email, date_embauche, salaire, created_date, sync_timestamp, sync_source) VALUES (15, 'Berger', 'Nathalie', 'Psychiatre', 15, '06-12-34-56-17', 'nathalie.berger@hopital.fr', '2025-07-31 13:52:49', 8600.00, '2025-07-31 13:52:49', '2025-08-02 20:58:35.465', 'oracle');
+INSERT INTO public.medecins_sync (medecin_id, nom, prenom, specialite, service_id, telephone, email, date_embauche, salaire, created_date, sync_timestamp, sync_source) VALUES (16, 'Guerin', 'Thomas', 'Radiologue', 16, '06-12-34-56-18', 'thomas.guerin@hopital.fr', '2025-07-31 13:52:49', 8900.00, '2025-07-31 13:52:49', '2025-08-02 20:58:35.465', 'oracle');
+INSERT INTO public.medecins_sync (medecin_id, nom, prenom, specialite, service_id, telephone, email, date_embauche, salaire, created_date, sync_timestamp, sync_source) VALUES (17, 'Roy', 'Virginie', 'Anesthésiste', 17, '06-12-34-56-19', 'virginie.roy@hopital.fr', '2025-07-31 13:52:49', 9100.00, '2025-07-31 13:52:49', '2025-08-02 20:58:35.465', 'oracle');
+INSERT INTO public.medecins_sync (medecin_id, nom, prenom, specialite, service_id, telephone, email, date_embauche, salaire, created_date, sync_timestamp, sync_source) VALUES (18, 'Petit', 'Olivier', 'Réanimateur', 18, '06-12-34-56-20', 'olivier.petit@hopital.fr', '2025-07-31 13:52:49', 9300.00, '2025-07-31 13:52:49', '2025-08-02 20:58:35.465', 'oracle');
+INSERT INTO public.medecins_sync (medecin_id, nom, prenom, specialite, service_id, telephone, email, date_embauche, salaire, created_date, sync_timestamp, sync_source) VALUES (19, 'Chevalier', 'Brigitte', 'Néphrologue', 19, '06-12-34-56-21', 'brigitte.chevalier@hopital.fr', '2025-07-31 13:52:49', 8700.00, '2025-07-31 13:52:49', '2025-08-02 20:58:35.465', 'oracle');
+INSERT INTO public.medecins_sync (medecin_id, nom, prenom, specialite, service_id, telephone, email, date_embauche, salaire, created_date, sync_timestamp, sync_source) VALUES (20, 'Mercier', 'Alain', 'Kinésithérapeute', 20, '06-12-34-56-22', 'alain.mercier@hopital.fr', '2025-07-31 13:52:49', 6500.00, '2025-07-31 13:52:49', '2025-08-02 20:58:35.465', 'oracle');
+
+
+--
+-- TOC entry 3563 (class 0 OID 24606)
+-- Dependencies: 217
+-- Data for Name: patients_sync; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+INSERT INTO public.patients_sync (patient_id, nom, prenom, date_naissance, sexe, adresse, telephone, email, numero_secu, created_date, sync_timestamp, sync_source) VALUES (1, 'Durand', 'Jean', '1980-05-15 00:00:00', 'M   ', '123 Rue de la Paix, Paris', '01-98-76-54-01', 'jean.durand@email.fr', '1800515123456', '2025-07-31 13:49:13', '2025-08-02 20:58:35.507', 'oracle');
+INSERT INTO public.patients_sync (patient_id, nom, prenom, date_naissance, sexe, adresse, telephone, email, numero_secu, created_date, sync_timestamp, sync_source) VALUES (2, 'Martin', 'Claire', '1975-09-22 00:00:00', 'F   ', '456 Avenue Victor Hugo, Lyon', '01-98-76-54-02', 'claire.martin@email.fr', '2750922654321', '2025-07-31 13:49:13', '2025-08-02 20:58:35.507', 'oracle');
+INSERT INTO public.patients_sync (patient_id, nom, prenom, date_naissance, sexe, adresse, telephone, email, numero_secu, created_date, sync_timestamp, sync_source) VALUES (3, 'Petit', 'Lucas', '2010-03-08 00:00:00', 'M   ', '789 Boulevard Saint-Michel, Marseille', '01-98-76-54-03', 'lucas.petit@email.fr', '1100308987654', '2025-07-31 13:49:13', '2025-08-02 20:58:35.507', 'oracle');
+INSERT INTO public.patients_sync (patient_id, nom, prenom, date_naissance, sexe, adresse, telephone, email, numero_secu, created_date, sync_timestamp, sync_source) VALUES (4, 'Legrand', 'Antoine', '1992-01-12 00:00:00', 'M   ', '45 Rue des Lilas, Bordeaux', '05-67-89-12-34', 'antoine.legrand@email.fr', '1920112345678', '2025-07-31 13:52:49', '2025-08-02 20:58:35.507', 'oracle');
+INSERT INTO public.patients_sync (patient_id, nom, prenom, date_naissance, sexe, adresse, telephone, email, numero_secu, created_date, sync_timestamp, sync_source) VALUES (5, 'Thomas', 'Marie', '1985-06-25 00:00:00', 'F   ', '78 Avenue de la Liberté, Lille', '03-21-45-67-89', 'marie.thomas@email.fr', '2850625987654', '2025-07-31 13:52:49', '2025-08-02 20:58:35.507', 'oracle');
+INSERT INTO public.patients_sync (patient_id, nom, prenom, date_naissance, sexe, adresse, telephone, email, numero_secu, created_date, sync_timestamp, sync_source) VALUES (6, 'Robert', 'Paul', '1978-11-30 00:00:00', 'M   ', '156 Boulevard Voltaire, Rennes', '02-99-87-65-43', 'paul.robert@email.fr', '1781130654321', '2025-07-31 13:52:49', '2025-08-02 20:58:35.507', 'oracle');
+INSERT INTO public.patients_sync (patient_id, nom, prenom, date_naissance, sexe, adresse, telephone, email, numero_secu, created_date, sync_timestamp, sync_source) VALUES (7, 'Richard', 'Julie', '1995-04-18 00:00:00', 'F   ', '23 Rue du Marché, Dijon', '03-80-12-34-56', 'julie.richard@email.fr', '2950418123789', '2025-07-31 13:52:49', '2025-08-02 20:58:35.507', 'oracle');
+INSERT INTO public.patients_sync (patient_id, nom, prenom, date_naissance, sexe, adresse, telephone, email, numero_secu, created_date, sync_timestamp, sync_source) VALUES (8, 'Dubois', 'Michel', '1970-08-14 00:00:00', 'M   ', '67 Place Wilson, Clermont-Ferrand', '04-73-56-78-90', 'michel.dubois@email.fr', '1700814456789', '2025-07-31 13:52:49', '2025-08-02 20:58:35.507', 'oracle');
+INSERT INTO public.patients_sync (patient_id, nom, prenom, date_naissance, sexe, adresse, telephone, email, numero_secu, created_date, sync_timestamp, sync_source) VALUES (9, 'Garcia', 'Carmen', '1983-12-07 00:00:00', 'F   ', '89 Rue de la Paix, Montpellier', '04-67-23-45-67', 'carmen.garcia@email.fr', '2831207789123', '2025-07-31 13:52:49', '2025-08-02 20:58:35.507', 'oracle');
+INSERT INTO public.patients_sync (patient_id, nom, prenom, date_naissance, sexe, adresse, telephone, email, numero_secu, created_date, sync_timestamp, sync_source) VALUES (10, 'Martinez', 'Carlos', '1987-03-22 00:00:00', 'M   ', '34 Avenue Jean Jaurès, Nice', '04-93-78-90-12', 'carlos.martinez@email.fr', '1870322345678', '2025-07-31 13:52:49', '2025-08-02 20:58:35.507', 'oracle');
+INSERT INTO public.patients_sync (patient_id, nom, prenom, date_naissance, sexe, adresse, telephone, email, numero_secu, created_date, sync_timestamp, sync_source) VALUES (11, 'Lopez', 'Isabella', '1991-09-15 00:00:00', 'F   ', '12 Rue Victor Hugo, Reims', '03-26-45-67-89', 'isabella.lopez@email.fr', '2910915678901', '2025-07-31 13:52:49', '2025-08-02 20:58:35.507', 'oracle');
+INSERT INTO public.patients_sync (patient_id, nom, prenom, date_naissance, sexe, adresse, telephone, email, numero_secu, created_date, sync_timestamp, sync_source) VALUES (12, 'Gonzalez', 'Roberto', '1976-02-28 00:00:00', 'M   ', '56 Boulevard Haussmann, Metz', '03-87-90-12-34', 'roberto.gonzalez@email.fr', '1760228901234', '2025-07-31 13:52:49', '2025-08-02 20:58:35.507', 'oracle');
+INSERT INTO public.patients_sync (patient_id, nom, prenom, date_naissance, sexe, adresse, telephone, email, numero_secu, created_date, sync_timestamp, sync_source) VALUES (13, 'Wilson', 'Sarah', '1989-07-11 00:00:00', 'F   ', '78 Rue de Rivoli, Tours', '02-47-34-56-78', 'sarah.wilson@email.fr', '2890711234567', '2025-07-31 13:52:49', '2025-08-02 20:58:35.507', 'oracle');
+INSERT INTO public.patients_sync (patient_id, nom, prenom, date_naissance, sexe, adresse, telephone, email, numero_secu, created_date, sync_timestamp, sync_source) VALUES (14, 'Johnson', 'David', '1982-10-05 00:00:00', 'M   ', '90 Place Bellecour, Orléans', '02-38-67-89-01', 'david.johnson@email.fr', '1821005567890', '2025-07-31 13:52:49', '2025-08-02 20:58:35.507', 'oracle');
+INSERT INTO public.patients_sync (patient_id, nom, prenom, date_naissance, sexe, adresse, telephone, email, numero_secu, created_date, sync_timestamp, sync_source) VALUES (15, 'Brown', 'Jennifer', '1994-05-29 00:00:00', 'F   ', '45 Avenue Foch, Angers', '02-41-12-34-56', 'jennifer.brown@email.fr', '2940529890123', '2025-07-31 13:52:49', '2025-08-02 20:58:35.507', 'oracle');
+INSERT INTO public.patients_sync (patient_id, nom, prenom, date_naissance, sexe, adresse, telephone, email, numero_secu, created_date, sync_timestamp, sync_source) VALUES (16, 'Davis', 'Christopher', '1973-01-17 00:00:00', 'M   ', '23 Rue Nationale, Le Mans', '02-43-78-90-12', 'christopher.davis@email.fr', '1730117123456', '2025-07-31 13:52:49', '2025-08-02 20:58:35.507', 'oracle');
+INSERT INTO public.patients_sync (patient_id, nom, prenom, date_naissance, sexe, adresse, telephone, email, numero_secu, created_date, sync_timestamp, sync_source) VALUES (17, 'Miller', 'Amanda', '1988-12-03 00:00:00', 'F   ', '67 Boulevard Saint-Germain, Caen', '02-31-45-67-89', 'amanda.miller@email.fr', '2881203456789', '2025-07-31 13:52:49', '2025-08-02 20:58:35.507', 'oracle');
+INSERT INTO public.patients_sync (patient_id, nom, prenom, date_naissance, sexe, adresse, telephone, email, numero_secu, created_date, sync_timestamp, sync_source) VALUES (18, 'Anderson', 'Michael', '1981-08-21 00:00:00', 'M   ', '34 Rue de la République, Brest', '02-98-23-45-67', 'michael.anderson@email.fr', '1810821789012', '2025-07-31 13:52:49', '2025-08-02 20:58:35.507', 'oracle');
+INSERT INTO public.patients_sync (patient_id, nom, prenom, date_naissance, sexe, adresse, telephone, email, numero_secu, created_date, sync_timestamp, sync_source) VALUES (19, 'Taylor', 'Lisa', '1986-04-14 00:00:00', 'F   ', '12 Place du Capitole, Poitiers', '05-49-67-89-01', 'lisa.taylor@email.fr', '2860414012345', '2025-07-31 13:52:49', '2025-08-02 20:58:35.507', 'oracle');
+INSERT INTO public.patients_sync (patient_id, nom, prenom, date_naissance, sexe, adresse, telephone, email, numero_secu, created_date, sync_timestamp, sync_source) VALUES (20, 'Jackson', 'Ryan', '1993-11-26 00:00:00', 'M   ', '89 Avenue de la Gare, Limoges', '05-55-34-56-78', 'ryan.jackson@email.fr', '1931126345678', '2025-07-31 13:52:49', '2025-08-02 20:58:35.507', 'oracle');
+INSERT INTO public.patients_sync (patient_id, nom, prenom, date_naissance, sexe, adresse, telephone, email, numero_secu, created_date, sync_timestamp, sync_source) VALUES (21, 'Thys', 'Oliver', '1985-03-15 00:00:00', 'M   ', '42 Rue des Champs, Mons', '+32-65-12-34-56', 'oliver.thys@email.be', '1850315123456', '2025-07-31 13:58:08', '2025-08-02 20:58:35.507', 'oracle');
+
+
+--
+-- TOC entry 3564 (class 0 OID 24613)
+-- Dependencies: 218
+-- Data for Name: rendez_vous_sync; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (1, 1, 1, '2025-08-07 13:49:13', '09:30', 'Consultation cardiologique', 'Programme', NULL, '2025-07-31 13:49:13', '2025-08-02 20:58:35.555', 'oracle');
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (2, 2, 2, '2025-08-05 13:49:13', '14:00', 'Suivi neurologique', 'Programme', NULL, '2025-07-31 13:49:13', '2025-08-02 20:58:35.555', 'oracle');
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (3, 4, 5, '2025-08-02 13:52:49', '08:00', 'Consultation orthopédique post-op', 'Programme', NULL, '2025-07-31 13:52:49', '2025-08-02 20:58:35.555', 'oracle');
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (4, 5, 6, '2025-08-03 13:52:50', '09:15', 'Suivi dermatologique', 'Programme', NULL, '2025-07-31 13:52:50', '2025-08-02 20:58:35.555', 'oracle');
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (5, 6, 7, '2025-08-01 13:52:50', '10:30', 'Contrôle pneumologique', 'Programme', NULL, '2025-07-31 13:52:50', '2025-08-02 20:58:35.555', 'oracle');
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (6, 7, 8, '2025-08-04 13:52:50', '11:45', 'Consultation gastro-entérologie', 'Programme', NULL, '2025-07-31 13:52:50', '2025-08-02 20:58:35.555', 'oracle');
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (7, 8, 9, '2025-08-06 13:52:50', '14:00', 'Bilan endocrinologique', 'Programme', NULL, '2025-07-31 13:52:50', '2025-08-02 20:58:35.555', 'oracle');
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (8, 9, 10, '2025-08-08 13:52:50', '15:15', 'Consultation urologique', 'Programme', NULL, '2025-07-31 13:52:50', '2025-08-02 20:58:35.555', 'oracle');
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (9, 10, 11, '2025-08-10 13:52:50', '16:30', 'Suivi oncologique', 'Programme', NULL, '2025-07-31 13:52:50', '2025-08-02 20:58:35.555', 'oracle');
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (10, 11, 12, '2025-08-12 13:52:50', '08:45', 'Examen ophtalmologique', 'Programme', NULL, '2025-07-31 13:52:50', '2025-08-02 20:58:35.555', 'oracle');
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (11, 12, 13, '2025-08-14 13:52:50', '09:00', 'Consultation ORL', 'Programme', NULL, '2025-07-31 13:52:50', '2025-08-02 20:58:35.555', 'oracle');
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (12, 13, 14, '2025-08-16 13:52:50', '10:15', 'Suivi rhumatologique', 'Programme', NULL, '2025-07-31 13:52:50', '2025-08-02 20:58:35.555', 'oracle');
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (13, 14, 15, '2025-08-18 13:52:50', '11:30', 'Consultation psychiatrique', 'Programme', NULL, '2025-07-31 13:52:50', '2025-08-02 20:58:35.555', 'oracle');
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (14, 15, 16, '2025-08-20 13:52:50', '13:45', 'Imagerie médicale', 'Programme', NULL, '2025-07-31 13:52:50', '2025-08-02 20:58:35.555', 'oracle');
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (15, 16, 17, '2025-08-22 13:52:50', '14:30', 'Consultation pré-anesthésique', 'Programme', NULL, '2025-07-31 13:52:50', '2025-08-02 20:58:35.555', 'oracle');
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (16, 17, 18, '2025-08-01 13:52:50', '15:45', 'Urgence respiratoire', 'Realise', NULL, '2025-07-31 13:52:50', '2025-08-02 20:58:35.555', 'oracle');
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (17, 18, 19, '2025-08-25 13:52:50', '16:00', 'Contrôle néphrologique', 'Programme', NULL, '2025-07-31 13:52:50', '2025-08-02 20:58:35.555', 'oracle');
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (18, 19, 20, '2025-08-03 13:52:50', '17:15', 'Séance kinésithérapie', 'Programme', NULL, '2025-07-31 13:52:50', '2025-08-02 20:58:35.555', 'oracle');
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (19, 20, 1, '2025-08-30 13:52:50', '08:30', 'Bilan cardiologique complet', 'Programme', NULL, '2025-07-31 13:52:50', '2025-08-02 20:58:35.555', 'oracle');
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (20, 1, 3, '2025-07-30 13:52:50', '12:00', 'Consultation urgences', 'Realise', NULL, '2025-07-31 13:52:50', '2025-08-02 20:58:35.555', 'oracle');
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (21, 3, 4, '2025-08-15 13:52:50', '13:30', 'Vaccination pédiatrique', 'Programme', NULL, '2025-07-31 13:52:50', '2025-08-02 20:58:35.555', 'oracle');
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (22, 2, 2, '2025-09-14 13:52:50', '14:45', 'IRM de contrôle', 'Programme', NULL, '2025-07-31 13:52:50', '2025-08-02 20:58:35.555', 'oracle');
+INSERT INTO public.rendez_vous_sync (rdv_id, patient_id, medecin_id, date_rdv, heure_rdv, motif, statut, notes, created_date, sync_timestamp, sync_source) VALUES (23, 21, 1, '2025-08-07 13:58:08', '10:00', 'Consultation cardiologique de suivi post-hospitalisation', 'Programme', NULL, '2025-07-31 13:58:08', '2025-08-02 20:58:35.555', 'oracle');
+
+
+--
+-- TOC entry 3565 (class 0 OID 24620)
+-- Dependencies: 219
+-- Data for Name: services_sync; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+INSERT INTO public.services_sync (service_id, nom_service, chef_service, nombre_lits, telephone, etage, created_date, sync_timestamp, sync_source) VALUES (1, 'Cardiologie', 'Dr. Martin Dubois', 25, '01-23-45-67-01', 2, '2025-07-31 13:49:13', '2025-08-02 20:58:35.608', 'oracle');
+INSERT INTO public.services_sync (service_id, nom_service, chef_service, nombre_lits, telephone, etage, created_date, sync_timestamp, sync_source) VALUES (2, 'Neurologie', 'Dr. Sophie Laurent', 20, '01-23-45-67-02', 3, '2025-07-31 13:49:13', '2025-08-02 20:58:35.608', 'oracle');
+INSERT INTO public.services_sync (service_id, nom_service, chef_service, nombre_lits, telephone, etage, created_date, sync_timestamp, sync_source) VALUES (3, 'Urgences', 'Dr. Pierre Moreau', 15, '01-23-45-67-03', 1, '2025-07-31 13:49:13', '2025-08-02 20:58:35.608', 'oracle');
+INSERT INTO public.services_sync (service_id, nom_service, chef_service, nombre_lits, telephone, etage, created_date, sync_timestamp, sync_source) VALUES (4, 'Pediatrie', 'Dr. Marie Rousseau', 30, '01-23-45-67-04', 4, '2025-07-31 13:49:13', '2025-08-02 20:58:35.608', 'oracle');
+INSERT INTO public.services_sync (service_id, nom_service, chef_service, nombre_lits, telephone, etage, created_date, sync_timestamp, sync_source) VALUES (5, 'Orthopédie', 'Dr. Jean-Pierre Lebon', 22, '01-23-45-67-07', 3, '2025-07-31 13:52:49', '2025-08-02 20:58:35.608', 'oracle');
+INSERT INTO public.services_sync (service_id, nom_service, chef_service, nombre_lits, telephone, etage, created_date, sync_timestamp, sync_source) VALUES (6, 'Dermatologie', 'Dr. Catherine Blanc', 8, '01-23-45-67-08', 2, '2025-07-31 13:52:49', '2025-08-02 20:58:35.608', 'oracle');
+INSERT INTO public.services_sync (service_id, nom_service, chef_service, nombre_lits, telephone, etage, created_date, sync_timestamp, sync_source) VALUES (7, 'Pneumologie', 'Dr. Michel Roux', 18, '01-23-45-67-09', 4, '2025-07-31 13:52:49', '2025-08-02 20:58:35.608', 'oracle');
+INSERT INTO public.services_sync (service_id, nom_service, chef_service, nombre_lits, telephone, etage, created_date, sync_timestamp, sync_source) VALUES (8, 'Gastro-entérologie', 'Dr. Anne Moreau', 16, '01-23-45-67-10', 3, '2025-07-31 13:52:49', '2025-08-02 20:58:35.608', 'oracle');
+INSERT INTO public.services_sync (service_id, nom_service, chef_service, nombre_lits, telephone, etage, created_date, sync_timestamp, sync_source) VALUES (9, 'Endocrinologie', 'Dr. François Duval', 12, '01-23-45-67-11', 5, '2025-07-31 13:52:49', '2025-08-02 20:58:35.608', 'oracle');
+INSERT INTO public.services_sync (service_id, nom_service, chef_service, nombre_lits, telephone, etage, created_date, sync_timestamp, sync_source) VALUES (10, 'Urologie', 'Dr. Patrick Lemoine', 14, '01-23-45-67-12', 6, '2025-07-31 13:52:49', '2025-08-02 20:58:35.608', 'oracle');
+INSERT INTO public.services_sync (service_id, nom_service, chef_service, nombre_lits, telephone, etage, created_date, sync_timestamp, sync_source) VALUES (11, 'Oncologie', 'Dr. Isabelle Girard', 20, '01-23-45-67-13', 7, '2025-07-31 13:52:49', '2025-08-02 20:58:35.608', 'oracle');
+INSERT INTO public.services_sync (service_id, nom_service, chef_service, nombre_lits, telephone, etage, created_date, sync_timestamp, sync_source) VALUES (12, 'Ophtalmologie', 'Dr. Robert Simon', 6, '01-23-45-67-14', 2, '2025-07-31 13:52:49', '2025-08-02 20:58:35.608', 'oracle');
+INSERT INTO public.services_sync (service_id, nom_service, chef_service, nombre_lits, telephone, etage, created_date, sync_timestamp, sync_source) VALUES (13, 'ORL', 'Dr. Sylvie Martin', 10, '01-23-45-67-15', 3, '2025-07-31 13:52:49', '2025-08-02 20:58:35.608', 'oracle');
+INSERT INTO public.services_sync (service_id, nom_service, chef_service, nombre_lits, telephone, etage, created_date, sync_timestamp, sync_source) VALUES (14, 'Rhumatologie', 'Dr. Henri Fabre', 12, '01-23-45-67-16', 4, '2025-07-31 13:52:49', '2025-08-02 20:58:35.608', 'oracle');
+INSERT INTO public.services_sync (service_id, nom_service, chef_service, nombre_lits, telephone, etage, created_date, sync_timestamp, sync_source) VALUES (15, 'Psychiatrie', 'Dr. Nathalie Berger', 24, '01-23-45-67-17', 8, '2025-07-31 13:52:49', '2025-08-02 20:58:35.608', 'oracle');
+INSERT INTO public.services_sync (service_id, nom_service, chef_service, nombre_lits, telephone, etage, created_date, sync_timestamp, sync_source) VALUES (16, 'Radiologie', 'Dr. Thomas Guerin', 0, '01-23-45-67-18', 1, '2025-07-31 13:52:49', '2025-08-02 20:58:35.608', 'oracle');
+INSERT INTO public.services_sync (service_id, nom_service, chef_service, nombre_lits, telephone, etage, created_date, sync_timestamp, sync_source) VALUES (17, 'Anesthésie', 'Dr. Virginie Roy', 0, '01-23-45-67-19', 5, '2025-07-31 13:52:49', '2025-08-02 20:58:35.608', 'oracle');
+INSERT INTO public.services_sync (service_id, nom_service, chef_service, nombre_lits, telephone, etage, created_date, sync_timestamp, sync_source) VALUES (18, 'Réanimation', 'Dr. Olivier Petit', 16, '01-23-45-67-20', 1, '2025-07-31 13:52:49', '2025-08-02 20:58:35.608', 'oracle');
+INSERT INTO public.services_sync (service_id, nom_service, chef_service, nombre_lits, telephone, etage, created_date, sync_timestamp, sync_source) VALUES (19, 'Dialyse', 'Dr. Brigitte Chevalier', 8, '01-23-45-67-21', 2, '2025-07-31 13:52:49', '2025-08-02 20:58:35.608', 'oracle');
+INSERT INTO public.services_sync (service_id, nom_service, chef_service, nombre_lits, telephone, etage, created_date, sync_timestamp, sync_source) VALUES (20, 'Kinésithérapie', 'Dr. Alain Mercier', 0, '01-23-45-67-22', 1, '2025-07-31 13:52:49', '2025-08-02 20:58:35.608', 'oracle');
+
+
+--
+-- TOC entry 3576 (class 0 OID 24681)
+-- Dependencies: 230
+-- Data for Name: system_settings; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+INSERT INTO public.system_settings (id, setting_key, setting_value, setting_type, description, updated_at) VALUES (1, 'sync_interval_minutes', '15', 'number', 'Intervalle de synchronisation en minutes', '2025-08-02 07:50:44.180987');
+INSERT INTO public.system_settings (id, setting_key, setting_value, setting_type, description, updated_at) VALUES (2, 'max_call_duration', '3600', 'number', 'Durée maximale d''appel en secondes', '2025-08-02 07:50:44.184507');
+INSERT INTO public.system_settings (id, setting_key, setting_value, setting_type, description, updated_at) VALUES (3, 'enable_call_logging', 'true', 'boolean', 'Activer la journalisation des appels', '2025-08-02 07:50:44.187398');
+INSERT INTO public.system_settings (id, setting_key, setting_value, setting_type, description, updated_at) VALUES (4, 'notification_email', 'admin@hellojade.local', 'string', 'Email pour les notifications', '2025-08-02 07:50:44.190035');
+INSERT INTO public.system_settings (id, setting_key, setting_value, setting_type, description, updated_at) VALUES (5, 'call_retry_attempts', '3', 'number', 'Nombre de tentatives de rappel', '2025-08-02 07:50:44.192067');
+
+
+--
+-- TOC entry 3566 (class 0 OID 24627)
+-- Dependencies: 220
+-- Data for Name: telephones_sync; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (1, 21, NULL, 'Mobile', '0471034785', 'BE', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (2, 1, NULL, 'Mobile', '0476123456', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (3, 2, NULL, 'Mobile', '0689234567', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (4, 3, NULL, 'Mobile', '0634567890', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (8, 4, NULL, 'Mobile', '0612398765', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (9, 5, NULL, 'Mobile', '0645612378', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (10, 6, NULL, 'Mobile', '0673215486', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (11, 7, NULL, 'Mobile', '0687459321', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (12, 8, NULL, 'Mobile', '0654987123', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (13, 9, NULL, 'Mobile', '0612547896', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (14, 10, NULL, 'Mobile', '0698741526', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (15, 11, NULL, 'Mobile', '0645789123', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (16, 12, NULL, 'Mobile', '0673158624', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (17, 13, NULL, 'Mobile', '0687456321', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (18, 14, NULL, 'Mobile', '0612365478', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (19, 15, NULL, 'Mobile', '0698523741', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (20, 16, NULL, 'Mobile', '0654712836', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (21, 17, NULL, 'Mobile', '0673951248', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (22, NULL, 1, 'Mobile', '0675123456', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (23, NULL, 2, 'Mobile', '0689654321', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (24, NULL, 3, 'Mobile', '0634789123', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (25, NULL, 4, 'Mobile', '0612987456', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (26, NULL, 5, 'Mobile', '0698147258', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (27, NULL, 6, 'Mobile', '0645369871', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (28, NULL, 7, 'Mobile', '0673582147', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (29, NULL, 8, 'Mobile', '0687741258', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (30, NULL, 9, 'Mobile', '0612456789', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (31, NULL, 10, 'Mobile', '0698753214', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (32, NULL, 11, 'Mobile', '0654987312', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (33, NULL, 12, 'Mobile', '0673214569', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (34, NULL, 13, 'Mobile', '0687456123', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (35, NULL, 14, 'Mobile', '0612789456', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (36, NULL, 15, 'Mobile', '0698321456', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (37, NULL, 16, 'Mobile', '0645789321', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (38, NULL, 17, 'Mobile', '0673951642', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (39, NULL, 18, 'Mobile', '0687159843', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (40, NULL, 19, 'Mobile', '0654321987', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (41, NULL, 20, 'Mobile', '0612486357', 'FR', 'Y   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (42, 21, NULL, 'Fixe', '065123456', 'BE', 'N   ', '2025-07-31 14:00:06', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (43, NULL, 1, 'Professionnel', '0123456701', 'FR', 'N   ', '2025-07-31 14:00:07', '2025-08-02 20:58:35.652', 'oracle');
+INSERT INTO public.telephones_sync (telephone_id, patient_id, medecin_id, type_telephone, numero_telephone, pays, principal, created_date, sync_timestamp, sync_source) VALUES (44, NULL, 2, 'Professionnel', '0123456702', 'FR', 'N   ', '2025-07-31 14:00:07', '2025-08-02 20:58:35.652', 'oracle');
+
+
+--
+-- TOC entry 3574 (class 0 OID 24671)
+-- Dependencies: 228
+-- Data for Name: user_activity; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+
+
+--
+-- TOC entry 3600 (class 0 OID 0)
+-- Dependencies: 237
+-- Name: asterisk_call_logs_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.asterisk_call_logs_id_seq', 1, false);
+
+
+--
+-- TOC entry 3601 (class 0 OID 0)
+-- Dependencies: 233
+-- Name: call_issues_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.call_issues_id_seq', 1, false);
+
+
+--
+-- TOC entry 3602 (class 0 OID 0)
+-- Dependencies: 221
+-- Name: call_logs_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.call_logs_id_seq', 5, true);
+
+
+--
+-- TOC entry 3603 (class 0 OID 0)
+-- Dependencies: 223
+-- Name: call_metrics_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.call_metrics_id_seq', 5, true);
+
+
+--
+-- TOC entry 3604 (class 0 OID 0)
+-- Dependencies: 235
+-- Name: call_settings_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.call_settings_id_seq', 15, true);
+
+
+--
+-- TOC entry 3605 (class 0 OID 0)
+-- Dependencies: 225
+-- Name: call_statistics_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.call_statistics_id_seq', 3, true);
+
+
+--
+-- TOC entry 3606 (class 0 OID 0)
+-- Dependencies: 231
+-- Name: calls_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.calls_id_seq', 21, true);
+
+
+--
+-- TOC entry 3607 (class 0 OID 0)
+-- Dependencies: 229
+-- Name: system_settings_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.system_settings_id_seq', 5, true);
+
+
+--
+-- TOC entry 3608 (class 0 OID 0)
+-- Dependencies: 227
+-- Name: user_activity_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.user_activity_id_seq', 1, false);
+
+
+--
+-- TOC entry 3413 (class 2606 OID 32823)
+-- Name: asterisk_call_logs asterisk_call_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.asterisk_call_logs
+    ADD CONSTRAINT asterisk_call_logs_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3415 (class 2606 OID 32825)
+-- Name: asterisk_call_logs asterisk_call_logs_unique_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.asterisk_call_logs
+    ADD CONSTRAINT asterisk_call_logs_unique_id_key UNIQUE (unique_id);
+
+
+--
+-- TOC entry 3407 (class 2606 OID 32795)
+-- Name: call_issues call_issues_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.call_issues
+    ADD CONSTRAINT call_issues_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3387 (class 2606 OID 24643)
+-- Name: call_logs call_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.call_logs
+    ADD CONSTRAINT call_logs_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3391 (class 2606 OID 24657)
+-- Name: call_metrics call_metrics_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.call_metrics
+    ADD CONSTRAINT call_metrics_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3409 (class 2606 OID 32813)
+-- Name: call_settings call_settings_key_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.call_settings
+    ADD CONSTRAINT call_settings_key_key UNIQUE (key);
+
+
+--
+-- TOC entry 3411 (class 2606 OID 32811)
+-- Name: call_settings call_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.call_settings
+    ADD CONSTRAINT call_settings_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3394 (class 2606 OID 24669)
+-- Name: call_statistics call_statistics_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.call_statistics
+    ADD CONSTRAINT call_statistics_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3405 (class 2606 OID 32782)
+-- Name: calls calls_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.calls
+    ADD CONSTRAINT calls_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3401 (class 2606 OID 24690)
+-- Name: system_settings system_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.system_settings
+    ADD CONSTRAINT system_settings_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3403 (class 2606 OID 24692)
+-- Name: system_settings system_settings_setting_key_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.system_settings
+    ADD CONSTRAINT system_settings_setting_key_key UNIQUE (setting_key);
+
+
+--
+-- TOC entry 3399 (class 2606 OID 24679)
+-- Name: user_activity user_activity_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.user_activity
+    ADD CONSTRAINT user_activity_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3388 (class 1259 OID 24702)
+-- Name: idx_call_logs_date; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_call_logs_date ON public.call_logs USING btree (call_start_time);
+
+
+--
+-- TOC entry 3389 (class 1259 OID 24701)
+-- Name: idx_call_logs_patient; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_call_logs_patient ON public.call_logs USING btree (patient_id);
+
+
+--
+-- TOC entry 3392 (class 1259 OID 24703)
+-- Name: idx_call_metrics_patient; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_call_metrics_patient ON public.call_metrics USING btree (patient_id);
+
+
+--
+-- TOC entry 3395 (class 1259 OID 24704)
+-- Name: idx_call_statistics_date; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_call_statistics_date ON public.call_statistics USING btree (date);
+
+
+--
+-- TOC entry 3379 (class 1259 OID 24694)
+-- Name: idx_hospitalisations_sync_patient; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_hospitalisations_sync_patient ON public.hospitalisations_sync USING btree (patient_id);
+
+
+--
+-- TOC entry 3380 (class 1259 OID 24700)
+-- Name: idx_hospitalisations_sync_timestamp; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_hospitalisations_sync_timestamp ON public.hospitalisations_sync USING btree (sync_timestamp);
+
+
+--
+-- TOC entry 3381 (class 1259 OID 24699)
+-- Name: idx_medecins_sync_timestamp; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_medecins_sync_timestamp ON public.medecins_sync USING btree (sync_timestamp);
+
+
+--
+-- TOC entry 3382 (class 1259 OID 24698)
+-- Name: idx_patients_sync_timestamp; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_patients_sync_timestamp ON public.patients_sync USING btree (sync_timestamp);
+
+
+--
+-- TOC entry 3383 (class 1259 OID 24697)
+-- Name: idx_rendez_vous_sync_date; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_rendez_vous_sync_date ON public.rendez_vous_sync USING btree (date_rdv);
+
+
+--
+-- TOC entry 3384 (class 1259 OID 24696)
+-- Name: idx_rendez_vous_sync_medecin; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_rendez_vous_sync_medecin ON public.rendez_vous_sync USING btree (medecin_id);
+
+
+--
+-- TOC entry 3385 (class 1259 OID 24695)
+-- Name: idx_rendez_vous_sync_patient; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_rendez_vous_sync_patient ON public.rendez_vous_sync USING btree (patient_id);
+
+
+--
+-- TOC entry 3396 (class 1259 OID 24706)
+-- Name: idx_user_activity_date; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_user_activity_date ON public.user_activity USING btree (created_at);
+
+
+--
+-- TOC entry 3397 (class 1259 OID 24705)
+-- Name: idx_user_activity_user; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_user_activity_user ON public.user_activity USING btree (user_id);
+
+
+--
+-- TOC entry 3417 (class 2606 OID 32826)
+-- Name: asterisk_call_logs asterisk_call_logs_call_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.asterisk_call_logs
+    ADD CONSTRAINT asterisk_call_logs_call_id_fkey FOREIGN KEY (call_id) REFERENCES public.calls(id) ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3416 (class 2606 OID 32796)
+-- Name: call_issues call_issues_call_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.call_issues
+    ADD CONSTRAINT call_issues_call_id_fkey FOREIGN KEY (call_id) REFERENCES public.calls(id) ON DELETE CASCADE;
+
+
+-- Completed on 2025-08-02 21:00:42
+
+--
+-- PostgreSQL database dump complete
+--
+

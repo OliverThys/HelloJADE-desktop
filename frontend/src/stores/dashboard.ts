@@ -2,71 +2,207 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { api } from '@/utils/api'
 
+export interface DashboardOverview {
+  patients_suivis: number
+  patients_appeles: number
+  patients_a_appeler: number
+  patients_echec: number
+  appels_aujourd_hui: number
+  satisfaction_moyenne: number
+  total_evaluations: number
+  alertes_actives: number
+}
+
+export interface PatientRecent {
+  call_id: number
+  patient_id: number
+  nom: string
+  prenom: string
+  service: string
+  medecin: string
+  date_sortie: string
+  jours_post_sortie: number
+  statut_appel: string
+  date_appel: string
+  temps_appel: string
+  score_calcule: number
+  satisfaction_score: number
+  resume_appel: string
+  niveau_douleur: number
+  etat_fatigue: string
+  niveau_anxiete: string
+  presence_infection: boolean
+  type_infection: string
+  alerte_id: number
+  type_alerte: string
+  niveau_urgence: string
+  alerte_description: string
+  action_requise: string
+  statut: string
+  statut_color: string
+}
+
+export interface ServiceStats {
+  nom_service: string
+  total_patients: number
+  patients_appeles: number
+  satisfaction_moyenne: number
+  alertes_actives: number
+}
+
+export interface SatisfactionStats {
+  date: string
+  nombre_evaluations: number
+  satisfaction_moyenne: number
+}
+
+export interface AlerteStats {
+  type_alerte: string
+  niveau_urgence: string
+  nombre: number
+}
+
+export interface DashboardStatistics {
+  par_service: ServiceStats[]
+  satisfaction_evolution: SatisfactionStats[]
+  alertes: AlerteStats[]
+}
+
 export const useDashboardStore = defineStore('dashboard', () => {
-  const stats = ref({
-    totalPatients: 0,
-    activePatients: 0,
-    totalCalls: 0,
-    pendingCalls: 0,
-    completedCalls: 0,
-    averageCallDuration: 0,
-    satisfactionRate: 0
-  })
+  // État
+  const overview = ref<DashboardOverview | null>(null)
+  const recentPatients = ref<PatientRecent[]>([])
+  const statistics = ref<DashboardStatistics | null>(null)
+  const alerts = ref<any[]>([])
+  const loading = ref(false)
+  const error = ref<string | null>(null)
 
-  const recentActivity = ref([])
-  const isLoading = ref(false)
+  // Getters
+  const patientsSuivis = computed(() => overview.value?.patients_suivis || 0)
+  const alertesActives = computed(() => overview.value?.alertes_actives || 0)
+  const appelsAujourdHui = computed(() => overview.value?.appels_aujourd_hui || 0)
+  const satisfactionMoyenne = computed(() => overview.value?.satisfaction_moyenne || 0)
 
-  const fetchDashboardData = async () => {
+  const patientsStables = computed(() => 
+    recentPatients.value.filter(p => p.statut === 'STABLE').length
+  )
+  const patientsAlertes = computed(() => 
+    recentPatients.value.filter(p => p.statut === 'ALERTE').length
+  )
+
+  // Actions
+  const fetchOverview = async () => {
+    loading.value = true
+    error.value = null
+    
     try {
-      isLoading.value = true
-      
-      // Simulation de données
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      stats.value = {
-        totalPatients: 156,
-        activePatients: 89,
-        totalCalls: 1247,
-        pendingCalls: 12,
-        completedCalls: 1235,
-        averageCallDuration: 8.5,
-        satisfactionRate: 94.2
+      const response = await api.get('/api/dashboard/overview')
+      if (response.data.success) {
+        overview.value = response.data.data
+      } else {
+        throw new Error('Erreur lors de la récupération des données')
       }
-      
-      recentActivity.value = [
-        {
-          id: 1,
-          type: 'call',
-          message: 'Nouvel appel reçu pour le patient Jean Dupont',
-          timestamp: new Date(Date.now() - 300000)
-        },
-        {
-          id: 2,
-          type: 'patient',
-          message: 'Patient Marie Martin ajouté au système',
-          timestamp: new Date(Date.now() - 600000)
-        },
-        {
-          id: 3,
-          type: 'call',
-          message: 'Appel #1234 terminé avec succès',
-          timestamp: new Date(Date.now() - 900000)
-        }
-      ]
-      
-      console.log('Données du tableau de bord chargées avec succès')
-      
-    } catch (error) {
-      console.error('Erreur lors du chargement des données du tableau de bord:', error)
+    } catch (err: any) {
+      error.value = err.message || 'Erreur lors de la récupération des données'
+      console.error('Erreur fetchOverview:', err)
     } finally {
-      isLoading.value = false
+      loading.value = false
     }
   }
 
+  const fetchRecentPatients = async (limit = 10) => {
+    loading.value = true
+    error.value = null
+    
+    try {
+      const response = await api.get(`/api/dashboard/recent-patients?limit=${limit}`)
+      if (response.data.success) {
+        recentPatients.value = response.data.data
+      } else {
+        throw new Error('Erreur lors de la récupération des patients')
+      }
+    } catch (err: any) {
+      error.value = err.message || 'Erreur lors de la récupération des patients'
+      console.error('Erreur fetchRecentPatients:', err)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const fetchStatistics = async () => {
+    loading.value = true
+    error.value = null
+    
+    try {
+      const response = await api.get('/api/dashboard/statistics')
+      if (response.data.success) {
+        statistics.value = response.data.data
+      } else {
+        throw new Error('Erreur lors de la récupération des statistiques')
+      }
+    } catch (err: any) {
+      error.value = err.message || 'Erreur lors de la récupération des statistiques'
+      console.error('Erreur fetchStatistics:', err)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const fetchAlerts = async (limit = 20) => {
+    loading.value = true
+    error.value = null
+    
+    try {
+      const response = await api.get(`/api/dashboard/alerts?limit=${limit}`)
+      if (response.data.success) {
+        alerts.value = response.data.data
+      } else {
+        throw new Error('Erreur lors de la récupération des alertes')
+      }
+    } catch (err: any) {
+      error.value = err.message || 'Erreur lors de la récupération des alertes'
+      console.error('Erreur fetchAlerts:', err)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const refreshAll = async () => {
+    await Promise.all([
+      fetchOverview(),
+      fetchRecentPatients(),
+      fetchStatistics(),
+      fetchAlerts()
+    ])
+  }
+
+  const clearError = () => {
+    error.value = null
+  }
+
   return {
-    stats,
-    recentActivity,
-    isLoading,
-    fetchDashboardData
+    // État
+    overview,
+    recentPatients,
+    statistics,
+    alerts,
+    loading,
+    error,
+    
+    // Getters
+    patientsSuivis,
+    alertesActives,
+    appelsAujourdHui,
+    satisfactionMoyenne,
+    patientsStables,
+    patientsAlertes,
+    
+    // Actions
+    fetchOverview,
+    fetchRecentPatients,
+    fetchStatistics,
+    fetchAlerts,
+    refreshAll,
+    clearError
   }
 }) 

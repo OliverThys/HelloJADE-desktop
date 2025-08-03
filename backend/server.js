@@ -7,6 +7,8 @@ const path = require('path')
 const authRoutes = require('./routes/auth')
 const { router: monitoringRoutes } = require('./routes/monitoring')
 const patientsRoutes = require('./routes/patients')
+const callsRoutes = require('./routes/calls')
+const dashboardRoutes = require('./routes/dashboard')
 const syncService = require('./sync-service')
 
 const app = express()
@@ -21,6 +23,18 @@ app.use(express.urlencoded({ extended: true }))
 app.use('/api/auth', authRoutes)
 app.use('/api/monitoring', monitoringRoutes)
 app.use('/api/patients', patientsRoutes)
+app.use('/api/calls', callsRoutes)
+app.use('/api/dashboard', dashboardRoutes)
+
+// Route de santé
+app.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Serveur HelloJADE opérationnel',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0'
+  })
+})
 
 // Routes de synchronisation
 app.get('/api/sync/status', (req, res) => {

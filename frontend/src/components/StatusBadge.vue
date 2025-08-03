@@ -1,12 +1,6 @@
 <template>
   <div class="flex items-center space-x-1">
-    <span
-      :class="[
-        'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border',
-        statusClasses
-      ]"
-    >
-      <span class="mr-1">{{ statusIcon }}</span>
+    <span :class="statusClasses">
       {{ statusText }}
     </span>
     <span
@@ -42,9 +36,9 @@ const statusText = computed(() => {
 
 const statusClasses = computed(() => {
   if (isValidCallStatus(props.status)) {
-    return getCallStatusColor(props.status as CallStatus)
+    return 'text-xs font-semibold px-2 py-1 rounded-md bg-white/80 dark:bg-slate-700/80 backdrop-blur-sm shadow-sm'
   }
-  return 'bg-gray-100 text-gray-800 border-gray-200'
+  return 'text-gray-500 dark:text-slate-400 text-xs'
 })
 
 const statusIcon = computed(() => {

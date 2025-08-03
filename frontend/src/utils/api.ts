@@ -137,27 +137,69 @@ export interface Utilisateur {
 
 export interface Call {
   id: number
-  project_patient_id: number
-  project_hospitalisation_id: number
-  statut: string
-  date_appel_prevue: string
-  date_appel_reelle: string | null
-  duree_secondes: number | null
-  score: number | null
-  resume_appel: string | null
-  dialogue_result: any | null
-  nombre_tentatives: number
-  date_creation: string
-  date_modification: string
+  patient_id: number
   numero_patient: string
   nom: string
   prenom: string
   date_naissance: string
   telephone: string
-  service: string | null
-  medecin: string | null
-  site: string | null
-  date_sortie: string
+  site_hospitalisation: string | null
+  date_sortie_hospitalisation: string | null
+  date_heure_prevue: string
+  statut_appel: string
+  medecin_referent: string | null
+  service_hospitalisation: string | null
+  date_heure_reelle: string | null
+  duree_appel: number | null
+  resume_appel: string | null
+  score_calcule: number | null
+  nombre_tentatives: number
+  max_tentatives: number
+  dialogue_result: any | null
+  audio_file_path: string | null
+  created_at: string
+  updated_at: string
+  issues?: CallIssue[]
+}
+
+export interface CallIssue {
+  id: number
+  type_probleme: string
+  description: string
+  priorite: string
+  statut: string
+  created_at: string
+}
+
+export interface CallFilters {
+  search?: string
+  date_debut?: string
+  date_fin?: string
+  statut?: string
+  site?: string
+  service?: string
+  page?: number
+  limit?: number
+  sort_by?: string
+  sort_order?: 'ASC' | 'DESC'
+}
+
+export interface CallStats {
+  overview: {
+    total_calls: number
+    successful_calls: number
+    failed_calls: number
+    pending_calls: number
+    success_rate: number
+    avg_duration: number
+    avg_score: number
+  }
+  daily_stats: Array<{
+    date: string
+    total: number
+    successful: number
+    failed: number
+  }>
 }
 
 export interface DashboardStats {
@@ -280,28 +322,21 @@ export const dashboardService = {
 }
 
 export const callsService = {
-  // Récupérer tous les appels
-  getAll: async (params?: any): Promise<Call[]> => {
+  // Récupérer tous les appels avec filtres et pagination
+  getAll: async (filters?: CallFilters): Promise<{ data: Call[], pagination: any, filters: any }> => {
     try {
-      const response = await api.get('/api/calls', { params })
+      const response = await api.get('/api/calls', { params: filters })
       console.log('🔍 API Calls Response:', response.data)
       
-      // Gérer différents formats de réponse
-      if (response.data && response.data.success && response.data.data && response.data.data.items) {
-        console.log('✅ Format 1: response.data.data.items')
-        return response.data.data.items
-      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
-        console.log('✅ Format 2: response.data.data')
-        return response.data.data
-      } else if (response.data && Array.isArray(response.data)) {
-        console.log('✅ Format 3: response.data')
-        return response.data
-      } else if (response.data && response.data.items && Array.isArray(response.data.items)) {
-        console.log('✅ Format 4: response.data.items')
-        return response.data.items
+      if (response.data && response.data.success) {
+        return {
+          data: response.data.data || [],
+          pagination: response.data.pagination || {},
+          filters: response.data.filters || {}
+        }
       } else {
         console.warn('❌ Format de réponse inattendu:', response.data)
-        return []
+        return { data: [], pagination: {}, filters: {} }
       }
     } catch (error) {
       console.error('❌ Erreur dans callsService.getAll:', error)
@@ -315,16 +350,31 @@ export const callsService = {
     return response.data.data
   },
 
-  // Créer un nouvel appel
-  create: async (callData: any): Promise<Call> => {
-    const response = await api.post('/api/calls', callData)
+  // Démarrer un appel manuel
+  startCall: async (id: number): Promise<Call> => {
+    const response = await api.post(`/api/calls/${id}/start`)
     return response.data.data
   },
 
-  // Mettre à jour un appel
-  update: async (id: number, callData: any): Promise<Call> => {
-    const response = await api.put(`/api/calls/${id}`, callData)
+  // Signaler un problème
+  reportIssue: async (id: number, issueData: { type_probleme: string, description: string, priorite?: string }): Promise<CallIssue> => {
+    const response = await api.post(`/api/calls/${id}/issues`, issueData)
     return response.data.data
+  },
+
+  // Récupérer les statistiques
+  getStats: async (): Promise<CallStats> => {
+    const response = await api.get('/api/calls/stats/overview')
+    return response.data.data
+  },
+
+  // Exporter en CSV
+  exportCSV: async (filters?: CallFilters): Promise<Blob> => {
+    const response = await api.get('/api/calls/export/csv', { 
+      params: filters,
+      responseType: 'blob'
+    })
+    return response.data
   }
 }
 

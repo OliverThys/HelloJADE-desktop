@@ -2,33 +2,41 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { callsService } from '@/utils/api'
 
-interface Call {
-  id: number
-  project_patient_id: number
-  project_hospitalisation_id: number
-  statut: string
-  date_appel_prevue: string
-  date_appel_reelle: string | null
-  duree_secondes: number | null
-  score: number | null
-  resume_appel: string | null
-  dialogue_result: any | null
-  nombre_tentatives: number
-  date_creation: string
-  date_modification: string
-  numero_patient: string
-  nom: string
-  prenom: string
-  date_naissance: string
-  telephone: string
-  service: string | null
-  medecin: string | null
-  site: string | null
-  date_sortie: string
+import type { Call, CallFilters, CallStats } from '@/utils/api'
+
+interface CallsState {
+  calls: Call[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+  filters: {
+    sites: string[]
+    services: string[]
+    statuts: string[]
+  }
+  stats: CallStats | null
+  isLoading: boolean
+  error: string | null
+  lastFetch: number | null
 }
 
 export const useCallsStore = defineStore('calls', () => {
   const calls = ref<Call[]>([])
+  const pagination = ref({
+    page: 1,
+    limit: 50,
+    total: 0,
+    totalPages: 0
+  })
+  const filters = ref({
+    sites: [],
+    services: [],
+    statuts: []
+  })
+  const stats = ref<CallStats | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const lastFetch = ref<number | null>(null)
@@ -44,7 +52,20 @@ export const useCallsStore = defineStore('calls', () => {
       if (stored) {
         const data = JSON.parse(stored)
         if (data.timestamp && Date.now() - data.timestamp < CACHE_DURATION) {
-          calls.value = data.calls
+          calls.value = data.calls || []
+          // S'assurer que pagination a toutes les propriétés requises
+          pagination.value = {
+            page: data.pagination?.page || 1,
+            limit: data.pagination?.limit || 50,
+            total: data.pagination?.total || 0,
+            totalPages: data.pagination?.totalPages || 0
+          }
+          // S'assurer que filters a toutes les propriétés requises
+          filters.value = {
+            sites: data.filters?.sites || [],
+            services: data.filters?.services || [],
+            statuts: data.filters?.statuts || []
+          }
           lastFetch.value = data.timestamp
           console.log('📦 Appels restaurés depuis le cache')
           return true
@@ -61,6 +82,8 @@ export const useCallsStore = defineStore('calls', () => {
     try {
       const data = {
         calls: calls.value,
+        pagination: pagination.value,
+        filters: filters.value,
         timestamp: Date.now()
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
@@ -70,12 +93,12 @@ export const useCallsStore = defineStore('calls', () => {
   }
 
   // Surveiller les changements et sauvegarder
-  watch(calls, saveToStorage, { deep: true })
+  watch([calls, pagination, filters], saveToStorage, { deep: true })
 
-  const fetchCalls = async (forceRefresh = false) => {
+  const fetchCalls = async (filters?: CallFilters, forceRefresh = false) => {
     try {
       // Vérifier si on peut utiliser le cache
-      if (!forceRefresh && restoreFromStorage()) {
+      if (!forceRefresh && !filters && restoreFromStorage()) {
         return
       }
 
@@ -83,12 +106,14 @@ export const useCallsStore = defineStore('calls', () => {
       error.value = null
       
       console.log('🔄 Chargement des appels depuis l\'API...')
-      const data = await callsService.getAll()
+      const result = await callsService.getAll(filters)
       
-      calls.value = data
+      calls.value = result.data
+      pagination.value = result.pagination
+      filters.value = result.filters
       lastFetch.value = Date.now()
       
-      console.log(`✅ ${data.length} appels chargés avec succès`)
+      console.log(`✅ ${result.data.length} appels chargés avec succès`)
       
     } catch (err: any) {
       console.error('❌ Erreur lors du chargement des appels:', err)
@@ -97,9 +122,72 @@ export const useCallsStore = defineStore('calls', () => {
       // Si pas de données en cache, utiliser des données de fallback
       if (calls.value.length === 0) {
         calls.value = getFallbackCalls()
+        // Réinitialiser pagination et filters avec des valeurs par défaut
+        pagination.value = {
+          page: 1,
+          limit: 50,
+          total: calls.value.length,
+          totalPages: Math.ceil(calls.value.length / 50)
+        }
+        filters.value = {
+          sites: [],
+          services: [],
+          statuts: []
+        }
       }
     } finally {
       isLoading.value = false
+    }
+  }
+
+  const fetchStats = async () => {
+    try {
+      const statsData = await callsService.getStats()
+      stats.value = statsData
+    } catch (err: any) {
+      console.error('❌ Erreur lors du chargement des statistiques:', err)
+    }
+  }
+
+  const startCall = async (id: number) => {
+    try {
+      const updatedCall = await callsService.startCall(id)
+      // Mettre à jour l'appel dans la liste
+      const index = calls.value.findIndex(c => c.id === id)
+      if (index !== -1) {
+        calls.value[index] = updatedCall
+      }
+      return updatedCall
+    } catch (err: any) {
+      console.error('❌ Erreur lors du démarrage de l\'appel:', err)
+      throw err
+    }
+  }
+
+  const reportIssue = async (id: number, issueData: { type_probleme: string, description: string, priorite?: string }) => {
+    try {
+      const issue = await callsService.reportIssue(id, issueData)
+      return issue
+    } catch (err: any) {
+      console.error('❌ Erreur lors du signalement du problème:', err)
+      throw err
+    }
+  }
+
+  const exportCalls = async (filters?: CallFilters) => {
+    try {
+      const blob = await callsService.exportCSV(filters)
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `appels_export_${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (err: any) {
+      console.error('❌ Erreur lors de l\'export:', err)
+      throw err
     }
   }
 
@@ -107,27 +195,28 @@ export const useCallsStore = defineStore('calls', () => {
     return [
       {
         id: 1,
-        project_patient_id: 1,
-        project_hospitalisation_id: 1,
-        statut: 'TERMINE',
-        date_appel_prevue: new Date(Date.now() - 3600000).toISOString(),
-        date_appel_reelle: new Date(Date.now() - 3600000).toISOString(),
-        duree_secondes: 300,
-        score: 85,
-        resume_appel: 'Appel réussi, patient satisfait',
-        dialogue_result: null,
-        nombre_tentatives: 1,
-        date_creation: new Date(Date.now() - 7200000).toISOString(),
-        date_modification: new Date(Date.now() - 3600000).toISOString(),
+        patient_id: 1,
         numero_patient: 'P001',
         nom: 'Dupont',
         prenom: 'Jean',
         date_naissance: '1980-05-15',
         telephone: '0471034785',
-        service: 'Cardiologie',
-        medecin: 'Dr. Martin',
-        site: 'CHU Gabriel-Montpied',
-        date_sortie: new Date(Date.now() - 86400000).toISOString()
+        site_hospitalisation: 'CHU Gabriel-Montpied',
+        date_sortie_hospitalisation: '2025-08-02',
+        date_heure_prevue: new Date(Date.now() - 3600000).toISOString(),
+        statut_appel: 'APPELE',
+        medecin_referent: 'Dr. Martin',
+        service_hospitalisation: 'Cardiologie',
+        date_heure_reelle: new Date(Date.now() - 3600000).toISOString(),
+        duree_appel: 300,
+        resume_appel: 'Appel réussi, patient satisfait',
+        score_calcule: 85,
+        nombre_tentatives: 1,
+        max_tentatives: 3,
+        dialogue_result: null,
+        audio_file_path: null,
+        created_at: new Date(Date.now() - 7200000).toISOString(),
+        updated_at: new Date(Date.now() - 3600000).toISOString()
       }
     ]
   }
@@ -166,12 +255,19 @@ export const useCallsStore = defineStore('calls', () => {
   return {
     // State
     calls,
+    pagination,
+    filters,
+    stats,
     isLoading,
     error,
     lastFetch,
     
     // Actions
     fetchCalls,
+    fetchStats,
+    startCall,
+    reportIssue,
+    exportCalls,
     getCallById,
     clearCache,
     initialize

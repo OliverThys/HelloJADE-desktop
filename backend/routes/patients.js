@@ -190,6 +190,88 @@ router.get('/:id', async (req, res) => {
   }
 })
 
+// PUT /api/patients/:id - Mettre à jour un patient
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const {
+      nom,
+      prenom,
+      date_naissance,
+      adresse,
+      telephone,
+      email,
+      numero_secu
+    } = req.body
+
+    // Vérifier que le patient existe
+    const checkQuery = 'SELECT patient_id FROM patients_sync WHERE patient_id = $1'
+    const checkResult = await pool.query(checkQuery, [id])
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Patient non trouvé'
+      })
+    }
+
+    // Mettre à jour le patient
+    const updateQuery = `
+      UPDATE patients_sync 
+      SET 
+        nom = $1,
+        prenom = $2,
+        date_naissance = $3,
+        adresse = $4,
+        telephone = $5,
+        email = $6,
+        numero_secu = $7,
+        sync_timestamp = CURRENT_TIMESTAMP
+      WHERE patient_id = $8
+      RETURNING 
+        patient_id,
+        nom,
+        prenom,
+        date_naissance,
+        sexe,
+        adresse,
+        telephone,
+        email,
+        numero_secu,
+        created_date,
+        sync_timestamp,
+        sync_source,
+        EXTRACT(YEAR FROM AGE(CURRENT_DATE, date_naissance)) as age
+    `
+
+    const result = await pool.query(updateQuery, [
+      nom,
+      prenom,
+      date_naissance,
+      adresse || null,
+      telephone || null,
+      email || null,
+      numero_secu || null,
+      id
+    ])
+
+    console.log('✅ Patient mis à jour avec succès:', id)
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    })
+
+  } catch (error) {
+    console.error('❌ Erreur lors de la mise à jour du patient:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la mise à jour du patient',
+      details: error.message
+    })
+  }
+})
+
 // GET /api/patients/export/csv - Exporter les patients en CSV
 router.get('/export/csv', async (req, res) => {
   try {

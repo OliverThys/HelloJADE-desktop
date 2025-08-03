@@ -1,9 +1,9 @@
 // Traductions des statuts d'appels
 export const callStatusTranslations = {
-  pending: 'En attente',
-  called: 'Appelé',
-  failed: 'Échoué',
-  in_progress: 'En cours'
+  A_APPELER: 'À appeler',
+  APPELE: 'Appelé',
+  ECHEC: 'Échoué',
+  EN_COURS: 'En cours'
 } as const
 
 // Types TypeScript pour les statuts
@@ -18,10 +18,10 @@ export function translateCallStatus(status: CallStatus): CallStatusFrench {
 // Fonction pour obtenir la couleur d'un statut
 export function getCallStatusColor(status: CallStatus): string {
   const colors = {
-    pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    called: 'bg-green-100 text-green-800 border-green-200',
-    failed: 'bg-red-100 text-red-800 border-red-200',
-    in_progress: 'bg-blue-100 text-blue-800 border-blue-200'
+    A_APPELER: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    APPELE: 'bg-green-100 text-green-800 border-green-200',
+    ECHEC: 'bg-red-100 text-red-800 border-red-200',
+    EN_COURS: 'bg-blue-100 text-blue-800 border-blue-200'
   }
   return colors[status] || 'bg-gray-100 text-gray-800 border-gray-200'
 }
@@ -29,21 +29,21 @@ export function getCallStatusColor(status: CallStatus): string {
 // Fonction pour obtenir l'icône d'un statut
 export function getCallStatusIcon(status: CallStatus): string {
   const icons = {
-    pending: '⏳',
-    called: '✅',
-    failed: '❌',
-    in_progress: '📞'
+    A_APPELER: '',
+    APPELE: '',
+    ECHEC: '',
+    EN_COURS: ''
   }
-  return icons[status] || '❓'
+  return icons[status] || ''
 }
 
 // Fonction pour obtenir la description d'un statut
 export function getCallStatusDescription(status: CallStatus): string {
   const descriptions = {
-    pending: 'Appel programmé, en attente d\'exécution',
-    called: 'Appel effectué avec succès',
-    failed: 'Appel échoué ou annulé',
-    in_progress: 'Appel en cours d\'exécution'
+    A_APPELER: 'Appel programmé, en attente d\'exécution',
+    APPELE: 'Appel effectué avec succès',
+    ECHEC: 'Appel échoué ou annulé',
+    EN_COURS: 'Appel en cours d\'exécution'
   }
   return descriptions[status] || 'Statut inconnu'
 }
