@@ -4,10 +4,10 @@
     <div class="mb-8">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-2">
+          <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
             Dashboard HelloJADE
           </h1>
-          <p class="text-slate-600 dark:text-slate-400">
+          <p class="text-gray-600 dark:text-gray-400">
             Suivi post-hospitalisation • Service Chirurgie • Dr. Martin
           </p>
         </div>
@@ -15,7 +15,7 @@
           <button 
             @click="refreshData"
             :disabled="loading"
-            class="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg transition-colors duration-200"
+            class="btn-primary"
           >
             <svg v-if="!loading" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -28,13 +28,13 @@
     </div>
 
     <!-- Message d'erreur -->
-    <div v-if="error" class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+    <div v-if="error" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg animate-bounce-in">
       <div class="flex items-center">
-        <svg class="w-5 h-5 text-red-600 dark:text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-5 h-5 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
         </svg>
-        <span class="text-red-800 dark:text-red-200">{{ error }}</span>
-        <button @click="clearError" class="ml-auto text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200">
+        <span class="text-red-800">{{ error }}</span>
+        <button @click="clearError" class="ml-auto text-red-600 hover:text-red-800 transition-hellojade">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -58,23 +58,23 @@
         <ActiveAlerts />
 
         <!-- Statistiques rapides -->
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-          <div class="p-6 border-b border-slate-200 dark:border-slate-700">
-            <h3 class="text-lg font-semibold text-slate-900 dark:text-white">
+        <div class="card-glass animate-fade-in" style="animation-delay: 0.5s;">
+          <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
               Vue d'ensemble
             </h3>
           </div>
           <div class="p-6 space-y-4">
             <div class="flex items-center justify-between">
-              <span class="text-sm text-slate-600 dark:text-slate-400">Patients stables</span>
+              <span class="text-sm text-gray-600 dark:text-gray-400">Patients stables</span>
               <span class="text-sm font-medium text-green-600 dark:text-green-400">{{ patientsStables }}</span>
             </div>
             <div class="flex items-center justify-between">
-              <span class="text-sm text-slate-600 dark:text-slate-400">Patients en alerte</span>
+              <span class="text-sm text-gray-600 dark:text-gray-400">Patients en alerte</span>
               <span class="text-sm font-medium text-red-600 dark:text-red-400">{{ patientsAlertes }}</span>
             </div>
             <div class="flex items-center justify-between">
-              <span class="text-sm text-slate-600 dark:text-slate-400">Taux de réponse</span>
+              <span class="text-sm text-gray-600 dark:text-gray-400">Taux de réponse</span>
               <span class="text-sm font-medium text-blue-600 dark:text-blue-400">
                 {{ tauxReponse }}%
               </span>
@@ -113,8 +113,6 @@ const refreshData = async () => {
 const clearError = () => {
   dashboardStore.clearError()
 }
-
-
 
 onMounted(async () => {
   await refreshData()

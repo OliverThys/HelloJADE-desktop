@@ -2,10 +2,6 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { createRouter, createWebHistory } from 'vue-router'
 import { createI18n } from 'vue-i18n'
-import Toast from 'vue-toastification'
-import 'vue-toastification/dist/index.css'
-
-
 
 import App from './App.vue'
 import { routes, setupRouterGuards } from './router'
@@ -21,22 +17,6 @@ const router = createRouter({
 // Configuration i18n
 const i18n = createI18n(i18nConfig)
 
-// Configuration des toasts
-const toastOptions = {
-  position: 'top-right',
-  timeout: 5000,
-  closeOnClick: true,
-  pauseOnFocusLoss: true,
-  pauseOnHover: true,
-  draggable: true,
-  draggablePercent: 0.6,
-  showCloseButtonOnHover: false,
-  hideProgressBar: false,
-  closeButton: 'button',
-  icon: true,
-  rtl: false
-}
-
 // Plugin de persistance pour Pinia
 const pinia = createPinia()
 
@@ -47,7 +27,6 @@ const app = createApp(App)
 app.use(pinia)
 app.use(router)
 app.use(i18n)
-app.use(Toast, toastOptions)
 
 // Configuration des guards de routage
 setupRouterGuards(router)

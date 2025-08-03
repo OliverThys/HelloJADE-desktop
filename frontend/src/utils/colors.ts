@@ -172,7 +172,7 @@ export const getGradientClass = (type: 'primary' | 'secondary' | 'background' | 
     secondary: 'bg-gradient-to-br from-blue-600 to-blue-700',
     background: 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100',
     card: 'bg-gradient-to-br from-white via-gray-50 to-gray-100',
-    glass: 'bg-white/80 backdrop-blur-xl'
+    glass: 'bg-white/80'
   }
   
   return gradientClasses[type] || gradientClasses.primary

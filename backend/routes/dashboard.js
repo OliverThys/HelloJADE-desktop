@@ -47,11 +47,11 @@ router.get('/overview', async (req, res) => {
     const satisfactionResult = await client.query(satisfactionQuery)
     const satisfaction = satisfactionResult.rows[0]
 
-    // Nombre d'alertes actives
+    // Nombre d'alertes actives basées sur le score
     const alertesQuery = `
       SELECT COUNT(*) as alertes_actives
-      FROM patient_alerts 
-      WHERE statut = 'ACTIVE'
+      FROM patient_score_alerts 
+      WHERE statut = 'ACTIVE' AND score_calcule <= 60
     `
     const alertesResult = await client.query(alertesQuery)
     const alertes = alertesResult.rows[0]
@@ -95,29 +95,39 @@ router.get('/recent-patients', async (req, res) => {
         c.date_sortie_hospitalisation,
         c.statut_appel,
         c.date_heure_reelle,
-        c.score_calcule,
         c.resume_appel,
         COALESCE(c.service_hospitalisation, 'Service inconnu') as service_hospitalisation,
         COALESCE(c.medecin_referent, 'Médecin non assigné') as medecin_nom,
         NULL as medecin_prenom,
         0 as jours_post_sortie,
         (ps.score_global * 10) as satisfaction_score,
-        wm.niveau_douleur,
-        wm.etat_fatigue,
-        wm.niveau_anxiete,
-        wm.presence_infection,
-        wm.type_infection,
-        pa.id as alerte_id,
-        pa.type_alerte,
-        pa.niveau_urgence,
-        pa.description as alerte_description,
-        pa.action_requise
+        -- Nouvelles métriques de score
+        psm.douleur,
+        psm.traitement_suivi,
+        psm.transit_normal,
+        psm.moral,
+        psm.fievre,
+        psm.mots_cles_urgents,
+        psm.score_calcule,
+        psm.date_evaluation,
+        -- Alertes basées sur le score
+        psa.id as alerte_id,
+        psa.niveau_urgence,
+        psa.raison_alerte,
+        psa.action_requise
       FROM calls c
       LEFT JOIN patient_satisfaction ps ON c.patient_id = ps.patient_id
-      LEFT JOIN patient_wellness_metrics wm ON c.patient_id = wm.patient_id
-      LEFT JOIN patient_alerts pa ON c.patient_id = pa.patient_id AND pa.statut = 'ACTIVE'
-      WHERE c.statut_appel = 'APPELE'
-      ORDER BY c.date_heure_reelle DESC NULLS LAST, c.date_sortie_hospitalisation DESC
+      LEFT JOIN patient_score_metrics psm ON c.patient_id = psm.patient_id
+      LEFT JOIN patient_score_alerts psa ON c.patient_id = psa.patient_id AND psa.statut = 'ACTIVE'
+      ORDER BY 
+        CASE 
+          WHEN c.statut_appel = 'APPELE' THEN 1
+          WHEN c.statut_appel = 'SUCCES' THEN 2
+          WHEN c.statut_appel = 'ECHEC' THEN 3
+          ELSE 4
+        END,
+        c.date_heure_reelle DESC NULLS LAST, 
+        c.date_sortie_hospitalisation DESC
       LIMIT $1
     `
     
@@ -127,22 +137,32 @@ router.get('/recent-patients', async (req, res) => {
     
     console.log('🔍 Traitement des résultats...')
     const patients = patientsResult.rows.map(patient => {
-      // Calcul du statut du patient
+      // Calcul du statut du patient basé sur le nouveau score
       let statut = 'STABLE'
       let statutColor = 'green'
       
-      // Statut basé sur le statut d'appel et les alertes
-      if (patient.alerte_id && patient.niveau_urgence === 'ELEVE') {
-        statut = 'URGENCE'
+      // Statut basé sur le statut d'appel d'abord
+      if (patient.statut_appel === 'ECHEC') {
+        statut = 'ECHEC'
         statutColor = 'red'
-      } else if (patient.statut_appel === 'ECHEC') {
-        statut = 'ATTENTION'
-        statutColor = 'orange'
       } else if (patient.statut_appel === 'A_APPELER' || patient.statut_appel === null) {
         statut = 'EN_ATTENTE'
         statutColor = 'blue'
-      } else if (patient.alerte_id) {
-        statut = 'SURVEILLANCE'
+      } else if (patient.statut_appel === 'SUCCES') {
+        // Pour les patients appelés avec succès, utiliser le score calculé
+        if (patient.score_calcule !== null && patient.score_calcule <= 30) {
+          statut = 'URGENCE'
+          statutColor = 'red'
+        } else if (patient.score_calcule !== null && patient.score_calcule <= 60) {
+          statut = 'ATTENTION'
+          statutColor = 'orange'
+        } else {
+          statut = 'STABLE'
+          statutColor = 'green'
+        }
+      } else if (patient.statut_appel === 'APPELE') {
+        // Pour les patients en cours d'appel
+        statut = 'EN_COURS'
         statutColor = 'yellow'
       }
 
@@ -182,18 +202,18 @@ router.get('/recent-patients', async (req, res) => {
         satisfaction_score: patient.satisfaction_score,
         resume_appel: patient.resume_appel,
         
-        // Métriques de bien-être
-        niveau_douleur: patient.niveau_douleur || 0,
-        etat_fatigue: patient.etat_fatigue || 'NON_EVALUE',
-        niveau_anxiete: patient.niveau_anxiete || 'NON_EVALUE',
-        presence_infection: patient.presence_infection || false,
-        type_infection: patient.type_infection,
+        // Nouvelles métriques de score (null pour les patients non encore appelés)
+        douleur: patient.douleur,
+        traitement_suivi: patient.traitement_suivi,
+        transit_normal: patient.transit_normal,
+        moral: patient.moral,
+        fievre: patient.fievre,
+        mots_cles_urgents: patient.mots_cles_urgents || [],
         
-        // Alertes
+        // Alertes basées sur le score
         alerte_id: patient.alerte_id,
-        type_alerte: patient.type_alerte,
         niveau_urgence: patient.niveau_urgence,
-        alerte_description: patient.alerte_description,
+        raison_alerte: patient.raison_alerte,
         action_requise: patient.action_requise,
         
         // Statut calculé
@@ -233,10 +253,10 @@ router.get('/statistics', async (req, res) => {
         COUNT(c.id) as total_patients,
         COUNT(CASE WHEN c.statut_appel = 'APPELE' THEN 1 END) as patients_appeles,
                  ROUND(AVG(ps.score_global * 10), 1) as satisfaction_moyenne,
-        COUNT(pa.id) as alertes_actives
+        COUNT(psa.id) as alertes_actives
       FROM calls c
       LEFT JOIN patient_satisfaction ps ON c.patient_id = ps.patient_id
-      LEFT JOIN patient_alerts pa ON c.patient_id = pa.patient_id AND pa.statut = 'ACTIVE'
+      LEFT JOIN patient_score_alerts psa ON c.patient_id = psa.patient_id AND psa.statut = 'ACTIVE'
       GROUP BY c.service_hospitalisation
       ORDER BY total_patients DESC
     `
@@ -255,15 +275,15 @@ router.get('/statistics', async (req, res) => {
     `
     const satisfactionStatsResult = await client.query(satisfactionStatsQuery)
 
-    // Statistiques des alertes par type
+    // Statistiques des alertes par type (basées sur le score)
     const alertesStatsQuery = `
       SELECT 
-        type_alerte,
+        'SCORE_FAIBLE' as type_alerte,
         niveau_urgence,
         COUNT(*) as nombre_alertes
-      FROM patient_alerts 
+      FROM patient_score_alerts 
       WHERE statut = 'ACTIVE'
-      GROUP BY type_alerte, niveau_urgence
+      GROUP BY niveau_urgence
       ORDER BY nombre_alertes DESC
     `
     const alertesStatsResult = await client.query(alertesStatsQuery)
@@ -300,16 +320,16 @@ router.get('/alerts', async (req, res) => {
       SELECT 
         a.id as alerte_id,
         a.patient_id,
-        a.type_alerte,
+        a.score_calcule,
         a.niveau_urgence,
-        a.description,
+        a.raison_alerte,
         a.action_requise,
         a.date_creation,
         c.nom,
         c.prenom
-      FROM patient_alerts a
+      FROM patient_score_alerts a
       LEFT JOIN calls c ON a.patient_id = c.patient_id
-      WHERE a.statut = 'ACTIVE'
+      WHERE a.statut = 'ACTIVE' AND a.score_calcule <= 60
       ORDER BY 
         CASE a.niveau_urgence 
           WHEN 'ELEVE' THEN 1 
@@ -327,9 +347,9 @@ router.get('/alerts', async (req, res) => {
       patient_id: alert.patient_id,
       patient_nom: alert.nom || 'Patient inconnu',
       patient_prenom: alert.prenom || '',
-      type_alerte: alert.type_alerte,
+      score_calcule: alert.score_calcule,
       niveau_urgence: alert.niveau_urgence,
-      description: alert.description,
+      raison_alerte: alert.raison_alerte,
       action_requise: alert.action_requise,
       date_creation: alert.date_creation
     }))

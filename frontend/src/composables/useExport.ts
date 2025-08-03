@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { useToast } from 'vue-toastification'
+import { useNotifications } from '@/composables/useNotifications'
 import { saveAs } from 'file-saver'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
@@ -20,7 +20,7 @@ export interface ImportOptions {
 }
 
 export function useExport() {
-  const toast = useToast()
+  const { showSuccess, showError } = useNotifications()
   const isExporting = ref(false)
   const isImporting = ref(false)
 
@@ -143,12 +143,12 @@ export function useExport() {
       }
 
       downloadFile(content, finalFilename, mimeType)
-      toast.success(`Export ${format.toUpperCase()} réussi`)
+      showSuccess('Export réussi', `Export ${format.toUpperCase()} réussi`)
       
       return finalFilename
     } catch (error) {
       console.error('Erreur lors de l\'export:', error)
-      toast.error('Erreur lors de l\'export')
+      showError('Erreur d\'export', 'Erreur lors de l\'export')
       throw error
     } finally {
       isExporting.value = false
@@ -251,11 +251,11 @@ export function useExport() {
         onProgress(100)
       }
 
-      toast.success(`${data.length} enregistrements importés`)
+      showSuccess('Import réussi', `${data.length} enregistrements importés`)
       return data
     } catch (error) {
       console.error('Erreur lors de l\'import:', error)
-      toast.error('Erreur lors de l\'import')
+      showError('Erreur d\'import', 'Erreur lors de l\'import')
       throw error
     } finally {
       isImporting.value = false

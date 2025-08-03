@@ -1,17 +1,17 @@
 <template>
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
     <!-- Patients suivis -->
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+    <div class="card-glass p-6 hover-lift animate-fade-in" style="animation-delay: 0.1s;">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
+          <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
             Patients suivis
           </p>
-          <p class="text-3xl font-bold text-slate-900 dark:text-white">
+          <p class="text-3xl font-bold text-gray-900 dark:text-white">
             {{ patientsSuivis }}
           </p>
         </div>
-        <div class="p-3 bg-green-100 dark:bg-green-900/20 rounded-full">
+        <div class="relative p-3 bg-green-100 dark:bg-green-900/20 rounded-full">
           <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
           </svg>
@@ -20,17 +20,17 @@
     </div>
 
     <!-- Alertes actives -->
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+    <div class="card-glass p-6 hover-lift animate-fade-in" style="animation-delay: 0.2s;">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
+          <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
             Alertes actives
           </p>
-          <p class="text-3xl font-bold text-slate-900 dark:text-white">
+          <p class="text-3xl font-bold text-gray-900 dark:text-white">
             {{ alertesActives }}
           </p>
         </div>
-        <div class="p-3 bg-red-100 dark:bg-red-900/20 rounded-full">
+        <div class="relative p-3 bg-red-100 dark:bg-red-900/20 rounded-full">
           <svg class="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
           </svg>
@@ -39,17 +39,17 @@
     </div>
 
     <!-- Appels aujourd'hui -->
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+    <div class="card-glass p-6 hover-lift animate-fade-in" style="animation-delay: 0.3s;">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
+          <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
             Appels aujourd'hui
           </p>
-          <p class="text-3xl font-bold text-slate-900 dark:text-white">
+          <p class="text-3xl font-bold text-gray-900 dark:text-white">
             {{ appelsAujourdHui }}
           </p>
         </div>
-        <div class="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-full">
+        <div class="relative p-3 bg-blue-100 dark:bg-blue-900/20 rounded-full">
           <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
           </svg>
@@ -58,17 +58,17 @@
     </div>
 
     <!-- Satisfaction -->
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+    <div class="card-glass p-6 hover-lift animate-fade-in" style="animation-delay: 0.4s;">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
+          <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
             Satisfaction
           </p>
-          <p class="text-3xl font-bold text-slate-900 dark:text-white">
+          <p class="text-3xl font-bold text-gray-900 dark:text-white">
             {{ satisfactionMoyenne.toFixed(1) }}%
           </p>
         </div>
-        <div class="p-3 bg-emerald-100 dark:bg-emerald-900/20 rounded-full">
+        <div class="relative p-3 bg-emerald-100 dark:bg-emerald-900/20 rounded-full">
           <svg class="w-6 h-6 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>

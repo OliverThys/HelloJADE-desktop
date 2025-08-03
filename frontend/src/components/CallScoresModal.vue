@@ -179,7 +179,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useToast } from 'vue-toastification'
+import { useNotifications } from '@/composables/useNotifications'
 import {
   XMarkIcon
 } from '@heroicons/vue/24/outline'
@@ -200,7 +200,7 @@ const emit = defineEmits<{
 }>()
 
 // Composables
-const toast = useToast()
+const { showError } = useNotifications()
 
 // State
 const newScore = ref({
@@ -259,7 +259,7 @@ const formatDuration = (duration: number) => {
 
 const addScore = () => {
   if (!isFormValid.value) {
-    toast.error('Veuillez remplir tous les champs requis')
+    showError('Formulaire incomplet', 'Veuillez remplir tous les champs requis')
     return
   }
   

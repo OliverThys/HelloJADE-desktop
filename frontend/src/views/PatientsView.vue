@@ -44,7 +44,7 @@
       >
         <div 
           v-show="showStatistics"
-          class="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 p-6 mb-6 backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95 relative"
+          class="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 p-6 mb-6 bg-opacity-95 dark:bg-opacity-95 relative"
         >
                      <!-- Encoche pour fermer les statistiques -->
            <div 

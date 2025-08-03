@@ -25,19 +25,21 @@ export interface PatientRecent {
   statut_appel: string
   date_appel: string
   temps_appel: string
-  score_calcule: number
-  satisfaction_score: number
+  score_calcule: number | null
+  satisfaction_score: number | null
   resume_appel: string
-  niveau_douleur: number
-  etat_fatigue: string
-  niveau_anxiete: string
-  presence_infection: boolean
-  type_infection: string
-  alerte_id: number
-  type_alerte: string
-  niveau_urgence: string
-  alerte_description: string
-  action_requise: string
+  // Nouvelles métriques de score (null pour les patients non encore appelés)
+  douleur: number | null
+  traitement_suivi: boolean | null
+  transit_normal: boolean | null
+  moral: number | null
+  fievre: boolean | null
+  mots_cles_urgents: string[]
+  // Alertes basées sur le score
+  alerte_id: number | null
+  niveau_urgence: string | null
+  raison_alerte: string | null
+  action_requise: string | null
   statut: string
   statut_color: string
 }
@@ -73,7 +75,17 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const overview = ref<DashboardOverview | null>(null)
   const recentPatients = ref<PatientRecent[]>([])
   const statistics = ref<DashboardStatistics | null>(null)
-  const alerts = ref<any[]>([])
+  const alerts = ref<{
+    alerte_id: number
+    patient_id: number
+    patient_nom: string
+    patient_prenom: string
+    score_calcule: number
+    niveau_urgence: string
+    raison_alerte: string
+    action_requise: string
+    date_creation: string
+  }[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
 

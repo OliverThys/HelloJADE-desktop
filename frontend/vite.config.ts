@@ -89,8 +89,7 @@ export default defineConfig({
       'chart.js',
       'vue-chartjs',
       'date-fns',
-      'lodash-es',
-      'vue-toastification'
+      'lodash-es'
     ]
   }
 }) 

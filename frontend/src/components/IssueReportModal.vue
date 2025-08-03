@@ -171,7 +171,7 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { useToast } from 'vue-toastification'
+import { useNotifications } from '@/composables/useNotifications'
 import {
   XMarkIcon,
   ExclamationTriangleIcon
@@ -187,7 +187,7 @@ const emit = defineEmits<{
   submit: [issueData: any]
 }>()
 
-const toast = useToast()
+const { showSuccess, showError } = useNotifications()
 
 // État local
 const isSubmitting = ref(false)
@@ -206,7 +206,7 @@ const submitIssue = async () => {
     
     // Validation
     if (!issueData.issue_type || !issueData.severity || !issueData.description) {
-      toast.error('Veuillez remplir tous les champs obligatoires')
+      showError('Champs manquants', 'Veuillez remplir tous les champs obligatoires')
       return
     }
 
@@ -233,10 +233,10 @@ const submitIssue = async () => {
       contact: ''
     })
     
-    toast.success('Problème signalé avec succès')
+    showSuccess('Problème signalé', 'Problème signalé avec succès')
   } catch (error) {
     console.error('Erreur lors du signalement:', error)
-    toast.error('Erreur lors du signalement')
+    showError('Erreur de signalement', 'Erreur lors du signalement')
   } finally {
     isSubmitting.value = false
   }

@@ -36,7 +36,7 @@ const statusText = computed(() => {
 
 const statusClasses = computed(() => {
   if (isValidCallStatus(props.status)) {
-    return 'text-xs font-semibold px-2 py-1 rounded-md bg-white/80 dark:bg-slate-700/80 backdrop-blur-sm shadow-sm'
+    return 'text-xs font-semibold px-2 py-1 rounded-md bg-white/80 dark:bg-slate-700/80 shadow-sm'
   }
   return 'text-gray-500 dark:text-slate-400 text-xs'
 })

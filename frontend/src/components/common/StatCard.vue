@@ -1,6 +1,6 @@
 <template>
   <div 
-    class="stat-card group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-xl shadow-lg border border-gray-100 dark:bg-slate-800/80 dark:border-slate-700/50 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] hover:-translate-y-1"
+    class="stat-card group relative overflow-hidden rounded-2xl bg-white/80 shadow-lg border border-gray-100 dark:bg-slate-800/80 dark:border-slate-700/50 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] hover:-translate-y-1"
     :class="cardClasses"
   >
     <!-- Gradient de fond -->
@@ -266,8 +266,7 @@ const formatChange = (change: number | null): string => {
 
 <style scoped>
 .stat-card {
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  /* backdrop-filter removed */
 }
 
 /* Animation d'entrée */

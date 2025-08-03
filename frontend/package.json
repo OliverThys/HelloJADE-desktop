@@ -39,7 +39,6 @@
     "vue-chartjs": "^5.2.0",
     "vue-i18n": "^9.6.5",
     "vue-router": "^4.2.5",
-    "vue-toastification": "^2.0.0-rc.5",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

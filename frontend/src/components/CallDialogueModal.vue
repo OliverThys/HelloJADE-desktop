@@ -216,7 +216,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useCallsEnhancedStore } from '@/stores/callsEnhanced'
-import { useToast } from 'vue-toastification'
+import { useNotifications } from '@/composables/useNotifications'
 import {
   XMarkIcon,
   MicrophoneIcon,
@@ -235,7 +235,7 @@ const emit = defineEmits<{
   complete: [callId: string]
 }>()
 
-const toast = useToast()
+const { showSuccess, showError, showInfo } = useNotifications()
 const callsStore = useCallsEnhancedStore()
 
 // État local
@@ -284,7 +284,7 @@ const startDialogue = async () => {
     })
   } catch (error) {
     console.error('Erreur lors du démarrage du dialogue:', error)
-    toast.error('Erreur lors du démarrage du dialogue')
+    showError('Erreur de démarrage', 'Erreur lors du démarrage du dialogue')
   }
 }
 
@@ -312,7 +312,7 @@ const sendSimulatedResponse = async () => {
       // Dialogue terminé
       dialogueComplete.value = true
       currentQuestion.value = ''
-      toast.success('Dialogue terminé avec succès')
+      showSuccess('Dialogue terminé', 'Dialogue terminé avec succès')
     } else {
       // Question suivante
       currentQuestion.value = result.nextQuestion
@@ -327,18 +327,18 @@ const sendSimulatedResponse = async () => {
     }
   } catch (error) {
     console.error('Erreur lors du traitement de la réponse:', error)
-    toast.error('Erreur lors du traitement de la réponse')
+    showError('Erreur de traitement', 'Erreur lors du traitement de la réponse')
   }
 }
 
 const pauseDialogue = () => {
   isPaused.value = true
-  toast.info('Dialogue mis en pause')
+  showInfo('Dialogue en pause', 'Le dialogue a été mis en pause')
 }
 
 const resumeDialogue = () => {
   isPaused.value = false
-  toast.info('Dialogue repris')
+  showInfo('Dialogue repris', 'Le dialogue a été repris')
 }
 
 const endDialogue = () => {
